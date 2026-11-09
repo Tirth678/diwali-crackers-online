@@ -86,7 +86,7 @@ function preloadCrackerImages(){
 }
 
 function preloadRealSounds(){
-  // Real Diwali recordings from internet (hi-ashutosh/diwali-after-dark) + fallbacks
+  // Authentic Diwali recordings — Pixabay via lavkushprasad93/diwali26 (CC0, freesound_community)
   const map: Record<string,string> = {
     anar:'anar.wav',
     fountain:'fountain.wav',
@@ -660,10 +660,10 @@ let handStates = {
 };
 const PINCH_THRESH = 0.05;
 // --- Improved tap system ---
-const TAP_TIMEOUT = 320; // ms wait to decide single/double/triple
-const HOLD_MAX_MS = 360; // max press duration to count as tap
-const TAP_MOVE_TOL = 28; // px tolerance between taps
-const THREE_FINGER_HOLD_MAX = 400;
+const TAP_TIMEOUT = 480; // ms wait to decide single/double/triple (human triple ~800ms)
+const HOLD_MAX_MS = 520; // max press duration to count as tap (allow slower taps)
+const TAP_MOVE_TOL = 42; // px tolerance between taps
+const THREE_FINGER_HOLD_MAX = 500;
 let threeFingerState = { active:false, startTime:0, startX:0, startY:0, moved:false };
 let lastFpsUpdate = 0;
 let isLowPerf = false;
@@ -713,7 +713,7 @@ function queueTap(handLabel, x, y){
   const now=performance.now();
   // distance from last tap resets chain
   const dist = Math.hypot((s.lastTapX||x)-x, (s.lastTapY||y)-y);
-  if(dist > 70 && s.tapCount>0){ // far away -> flush previous chain first
+  if(dist > 95 && s.tapCount>0){ // far away -> flush previous chain first
     if(s.tapTimer){ clearTimeout(s.tapTimer); dispatchTap(handLabel, s.tapCount, s.lastTapX, s.lastTapY); s.tapCount=0; s.tapTimer=null; }
   }
   s.tapCount = (s.tapCount||0)+1;
@@ -740,9 +740,9 @@ function handlePinch(handLabel, isPinchingNow, cursorX, cursorY){
       state.isPinching=false;
       const dur = performance.now() - state.pinchStart;
       const moved = Math.hypot(cursorX-(state.pinchStartX||cursorX), cursorY-(state.pinchStartY||cursorY));
-      if(dur < HOLD_MAX_MS && moved < 32){
+      if(dur < HOLD_MAX_MS && moved < 38){
         queueTap(handLabel, cursorX, cursorY);
-      } else if(dur < 1200 && moved < 18){
+      } else if(dur < 1400 && moved < 22){
         // long press but tiny move -> still treat as single (prevents misfire)
         queueTap(handLabel, cursorX, cursorY);
       }
@@ -781,22 +781,24 @@ function onDoubleTap(handLabel, x, y){
   fireAt(x,y, activeCracker);
 }
 function onTripleTap(handLabel, x, y){
+  console.log('[triple]', handLabel, x, y);
   const global = canvasToGlobal(x,y);
   const shelfHit = hitTestShelf(global.x, global.y);
   if(shelfHit){
-    // on shelf triple = cycle preview
     cycleCracker(1);
     fireAt(canvas.width/2, canvas.height*0.42, shelfHit);
+    showToast(`🖖 Triple • ${CRACKER_TYPES.find(c=>c.id===activeCracker).name} selected`, CRACKER_TYPES.find(c=>c.id===activeCracker).color);
+    try{ (navigator as any).vibrate && (navigator as any).vibrate([60,40,80]); }catch{}
     return;
   }
-  // Stage triple: cycle cracker + mega burst
   const prev = activeCracker;
   cycleCracker(1);
-  // burst with previous cracker at tap point plus new cracker nearby for wow
+  // mega burst: 3 bursts for wow effect
   fireAt(x, y, prev);
-  setTimeout(()=> fireAt(x + 40*(Math.random()-0.5), y-18, activeCracker), 120);
-  showToast(`3-Tap • Switched to ${CRACKER_TYPES.find(c=>c.id===activeCracker).name} • Mega burst!`, '#ffd60a');
-  try{ (navigator as any).vibrate && (navigator as any).vibrate([40,30,60]); }catch{}
+  setTimeout(()=> fireAt(x + 50*(Math.random()-0.5), y-22, activeCracker), 140);
+  setTimeout(()=> fireAt(x + 30*(Math.random()-0.5), y+12, activeCracker), 280);
+  showToast(`⚡ Triple-Tap • ${CRACKER_TYPES.find(c=>c.id===activeCracker).name} • MEGA BURST!`, '#ffd60a');
+  try{ (navigator as any).vibrate && (navigator as any).vibrate([50,30,70,30]); }catch{}
 }
 function onThreeFingerTap(x, y){
   // 3-finger = cycle cracker (anywhere)
@@ -903,7 +905,7 @@ canvas.addEventListener('touchmove',(e)=>{
     const cy = (e.touches[0].clientY + e.touches[1].clientY + e.touches[2].clientY)/3;
     const x = ((cx - rect.left)/rect.width)*canvas.width;
     const y = ((cy - rect.top)/rect.height)*canvas.height;
-    if(Math.hypot(x-threeFingerState.startX, y-threeFingerState.startY) > 26) threeFingerState.moved=true;
+    if(Math.hypot(x-threeFingerState.startX, y-threeFingerState.startY) > 32) threeFingerState.moved=true;
     handStates.Mouse.cursor={x,y};
     e.preventDefault();
     return;
@@ -1376,17 +1378,8 @@ function toggleAutoCelebrate(){
   }
 }
 
-// dblclick kept as fallback but debounced to avoid double burst from tap system
-let lastDbl=0;
-canvas.addEventListener('dblclick', (e)=>{
-  const now=performance.now();
-  if(now - lastDbl < 500) return;
-  lastDbl=now;
-  const rect=canvas.getBoundingClientRect();
-  const x=((e.clientX-rect.left)/rect.width)*canvas.width;
-  const y=((e.clientY - rect.top)/rect.height)*canvas.height;
-  fireAt(x,y,activeCracker);
-});
+// dblclick disabled — queueTap handles all single/double/triple uniformly to prevent double-fire
+canvas.addEventListener('dblclick', (e)=>{ e.preventDefault(); });
 
 // Keyboard
 window.addEventListener('keydown', (e)=>{
