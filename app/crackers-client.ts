@@ -86,21 +86,22 @@ function preloadCrackerImages(){
 }
 
 function preloadRealSounds(){
+  // Real Diwali recordings from internet (hi-ashutosh/diwali-after-dark) + fallbacks
   const map: Record<string,string> = {
     anar:'anar.wav',
-    fountain:'anar.wav',
-    rocket:'rocket.wav',
+    fountain:'fountain.wav',
+    rocket:'rocket.mp3',
     chakri:'chakri.wav',
-    bomb:'bomb.wav',
-    sutli:'bomb.wav',
-    fuljhadi:'fuljhadi.wav',
-    sparkler:'fuljhadi.wav',
-    laxmi:'laxmi.wav',
-    megabomb:'laxmi.wav',
-    pop:'pop.wav',
-    skyshot:'skyshot.wav',
-    sky:'skyshot.wav',
-    firework:'skyshot.wav'
+    bomb:'bomb.mp3',
+    sutli:'sutli.mp3',
+    fuljhadi:'fuljhadi.mp3',
+    sparkler:'sparkler.mp3',
+    laxmi:'laxmi.mp3',
+    megabomb:'megabomb.mp3',
+    pop:'pop.mp3',
+    skyshot:'skyshot.mp3',
+    sky:'sky.wav',
+    firework:'skyshot.mp3'
   };
   Object.entries(map).forEach(([key,file])=>{
     const pool: HTMLAudioElement[] = [];
