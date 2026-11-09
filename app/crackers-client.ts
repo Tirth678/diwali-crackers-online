@@ -41,6 +41,8 @@ const statStreakEl = document.getElementById('statStreak');
 const statHandsEl = document.getElementById('statHands');
 const burstCountHint = document.getElementById('burstCountHint');
 const arsenalList = document.getElementById('arsenalList');
+// null-safe wrappers for minimal UI
+const safeSet = (el,v)=>{ try{ if(el) el.textContent=v; }catch{} };
 const camDot = document.getElementById('camDot');
 const camLabel = document.getElementById('camLabel');
 const startMessage = document.getElementById('startMessage');
@@ -86,7 +88,7 @@ function preloadCrackerImages(){
 }
 
 function preloadRealSounds(){
-  // Real Diwali recordings from internet (hi-ashutosh/diwali-after-dark) + fallbacks
+  // Authentic Diwali recordings — Pixabay via lavkushprasad93/diwali26 (CC0, freesound_community)
   const map: Record<string,string> = {
     anar:'anar.wav',
     fountain:'fountain.wav',
@@ -346,27 +348,27 @@ function updateActiveUI(){
   renderArsenal();
 }
 function renderArsenal(){
-  const counts={};
-  placedCrackers.forEach(p=> counts[p.type]=(counts[p.type]||0)+1);
-  arsenalList.innerHTML='';
-  CRACKER_TYPES.forEach(t=>{
-    const c = counts[t.id]||0;
-    const el=document.createElement('div');
-    el.className='arsenal-item';
-    el.style.opacity=c?1:0.45;
-    el.innerHTML=`
-      <div class="icon" style="background:${t.color}20; border:1px solid ${t.color}40; overflow:hidden; display:grid; place-items:center"><img src="${(t as any).image}" alt="${t.name}" style="width:22px;height:22px;object-fit:contain; border-radius:4px" onerror="this.style.display='none'; this.parentElement.textContent='${t.emoji}'" /></div>
-      <div class="info"><b>${t.name}</b><span>${t.desc}</span></div>
-      <div class="count" style="color:${t.color}">${c}</div>
-    `;
-    el.addEventListener('click', ()=> selectCracker(t.id));
-    arsenalList.appendChild(el);
-  });
-  statPlacedEl.textContent=stats.placed;
-  statBurstsEl.textContent=stats.bursts;
-  statStreakEl.textContent=stats.streak;
-  statHandsEl.textContent = handLandmarker ? 'Hands AI ✓' : 'Mouse/Touch';
-  burstCountHint.textContent=`${stats.bursts} bursts`;
+  try{
+    if(!arsenalList || arsenalList.style.display==='none'){
+      safeSet(statPlacedEl, stats.placed); safeSet(statBurstsEl, stats.bursts); safeSet(statStreakEl, stats.streak);
+      return;
+    }
+    const counts={};
+    placedCrackers.forEach(p=> counts[p.type]=(counts[p.type]||0)+1);
+    arsenalList.innerHTML='';
+    CRACKER_TYPES.forEach(t=>{
+      const c = counts[t.id]||0;
+      if(c===0) return; // only show placed for minimal
+      const el=document.createElement('div');
+      el.className='arsenal-item';
+      el.innerHTML=`<div class="icon" style="background:${t.color}20; border:1px solid ${t.color}40; overflow:hidden; display:grid; place-items:center"><img src="${(t as any).image}" alt="${t.name}" style="width:22px;height:22px;object-fit:contain; border-radius:4px" onerror="this.style.display='none'" /></div><div class="info"><b>${t.name}</b></div><div class="count" style="color:${t.color}">${c}</div>`;
+      el.addEventListener('click', ()=> selectCracker(t.id));
+      arsenalList.appendChild(el);
+    });
+    safeSet(statPlacedEl, stats.placed); safeSet(statBurstsEl, stats.bursts); safeSet(statStreakEl, stats.streak);
+    if(statHandsEl) safeSet(statHandsEl, handLandmarker ? 'Hands ✓' : 'Touch');
+    if(burstCountHint) safeSet(burstCountHint, `${stats.bursts} bursts`);
+  }catch{}
 }
 
 // Particles helpers
@@ -539,13 +541,14 @@ function fireAt(x,y,type){
     if(d<80 && d<bestDist){ bestDist=d; idx=i; }
   });
   if(idx>=0){ placedCrackers.splice(idx,1); renderArsenal(); }
-  stageWrap.animate([{transform:'translate(0,0)'},{transform:`translate(${Math.random()*6-3}px,${Math.random()*4-2}px)`},{transform:'translate(0,0)'}],{duration:180, easing:'ease-out'});
+  if(!isLowPerf) try{ stageWrap.animate([{transform:'translate(0,0)'},{transform:`translate(${Math.random()*3-1.5}px,${Math.random()*2-1}px)`},{transform:'translate(0,0)'}],{duration:120}); }catch{}
 }
 
 function placeCracker(x,y,type){
+  if(placedCrackers.length > 12) placedCrackers.shift(); // cap for lightweight
   placedCrackers.push({id:Date.now()+Math.random(), x,y, type, scale:1, placedAt:performance.now()});
   stats.placed++;
-  renderArsenal();
+  try{ renderArsenal(); }catch{}
   showToast(`Placed ${CRACKER_TYPES.find(c=>c.id===type).name} — double-tap to fire!`, '#ffd60a');
   playSound('pop');
   for(let i=0;i<12;i++){
@@ -570,9 +573,9 @@ async function startCamera(){
     if(startMsg) startMsg.classList.add('hidden');
     let stream: MediaStream | null = null;
     const tries: any[] = [
-      {video:{width:{ideal:1280}, height:{ideal:720}, facingMode:'user'}, audio:false},
-      {video:{width:{ideal:640}, height:{ideal:480}, facingMode:'user'}, audio:false},
-      {video:{facingMode:'user'}, audio:false},
+      {video:{width:{ideal:640}, height:{ideal:480}, facingMode:'user', frameRate:{ideal:24}}, audio:false},
+      {video:{width:{ideal:854}, height:{ideal:480}, facingMode:'user'}, audio:false},
+      {video:{width:{ideal:640}, height:{ideal:360}, facingMode:'user'}, audio:false},
       {video:true, audio:false}
     ];
     let lastErr: any = null;
@@ -660,17 +663,17 @@ let handStates = {
 };
 const PINCH_THRESH = 0.05;
 // --- Improved tap system ---
-const TAP_TIMEOUT = 320; // ms wait to decide single/double/triple
-const HOLD_MAX_MS = 360; // max press duration to count as tap
-const TAP_MOVE_TOL = 28; // px tolerance between taps
-const THREE_FINGER_HOLD_MAX = 400;
+const TAP_TIMEOUT = 480; // ms wait to decide single/double/triple (human triple ~800ms)
+const HOLD_MAX_MS = 520; // max press duration to count as tap (allow slower taps)
+const TAP_MOVE_TOL = 42; // px tolerance between taps
+const THREE_FINGER_HOLD_MAX = 500;
 let threeFingerState = { active:false, startTime:0, startX:0, startY:0, moved:false };
 let lastFpsUpdate = 0;
-let isLowPerf = false;
-try{ isLowPerf = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || window.innerWidth < 860; }catch{}
-let particleBudget = isLowPerf ? 380 : 650;
+let isLowPerf = true; // lightweight default
+try{ isLowPerf = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 6) || window.innerWidth < 900 || true; }catch{}
+let particleBudget = 280; // ultra-light
 let lastPredictTime = 0;
-const PREDICT_INTERVAL = isLowPerf ? 66 : 45; // throttle hand detection
+const PREDICT_INTERVAL = 110; // ~9fps hand detection for lightweight (was 45/66)
 let handCache = { count:0, text:'0 hands' };
 let lastHandDomUpdate = 0;
 
@@ -713,7 +716,7 @@ function queueTap(handLabel, x, y){
   const now=performance.now();
   // distance from last tap resets chain
   const dist = Math.hypot((s.lastTapX||x)-x, (s.lastTapY||y)-y);
-  if(dist > 70 && s.tapCount>0){ // far away -> flush previous chain first
+  if(dist > 95 && s.tapCount>0){ // far away -> flush previous chain first
     if(s.tapTimer){ clearTimeout(s.tapTimer); dispatchTap(handLabel, s.tapCount, s.lastTapX, s.lastTapY); s.tapCount=0; s.tapTimer=null; }
   }
   s.tapCount = (s.tapCount||0)+1;
@@ -740,9 +743,9 @@ function handlePinch(handLabel, isPinchingNow, cursorX, cursorY){
       state.isPinching=false;
       const dur = performance.now() - state.pinchStart;
       const moved = Math.hypot(cursorX-(state.pinchStartX||cursorX), cursorY-(state.pinchStartY||cursorY));
-      if(dur < HOLD_MAX_MS && moved < 32){
+      if(dur < HOLD_MAX_MS && moved < 38){
         queueTap(handLabel, cursorX, cursorY);
-      } else if(dur < 1200 && moved < 18){
+      } else if(dur < 1400 && moved < 22){
         // long press but tiny move -> still treat as single (prevents misfire)
         queueTap(handLabel, cursorX, cursorY);
       }
@@ -781,22 +784,24 @@ function onDoubleTap(handLabel, x, y){
   fireAt(x,y, activeCracker);
 }
 function onTripleTap(handLabel, x, y){
+  console.log('[triple]', handLabel, x, y);
   const global = canvasToGlobal(x,y);
   const shelfHit = hitTestShelf(global.x, global.y);
   if(shelfHit){
-    // on shelf triple = cycle preview
     cycleCracker(1);
     fireAt(canvas.width/2, canvas.height*0.42, shelfHit);
+    showToast(`🖖 Triple • ${CRACKER_TYPES.find(c=>c.id===activeCracker).name} selected`, CRACKER_TYPES.find(c=>c.id===activeCracker).color);
+    try{ (navigator as any).vibrate && (navigator as any).vibrate([60,40,80]); }catch{}
     return;
   }
-  // Stage triple: cycle cracker + mega burst
   const prev = activeCracker;
   cycleCracker(1);
-  // burst with previous cracker at tap point plus new cracker nearby for wow
+  // mega burst: 3 bursts for wow effect
   fireAt(x, y, prev);
-  setTimeout(()=> fireAt(x + 40*(Math.random()-0.5), y-18, activeCracker), 120);
-  showToast(`3-Tap • Switched to ${CRACKER_TYPES.find(c=>c.id===activeCracker).name} • Mega burst!`, '#ffd60a');
-  try{ (navigator as any).vibrate && (navigator as any).vibrate([40,30,60]); }catch{}
+  setTimeout(()=> fireAt(x + 50*(Math.random()-0.5), y-22, activeCracker), 140);
+  setTimeout(()=> fireAt(x + 30*(Math.random()-0.5), y+12, activeCracker), 280);
+  showToast(`⚡ Triple-Tap • ${CRACKER_TYPES.find(c=>c.id===activeCracker).name} • MEGA BURST!`, '#ffd60a');
+  try{ (navigator as any).vibrate && (navigator as any).vibrate([50,30,70,30]); }catch{}
 }
 function onThreeFingerTap(x, y){
   // 3-finger = cycle cracker (anywhere)
@@ -903,7 +908,7 @@ canvas.addEventListener('touchmove',(e)=>{
     const cy = (e.touches[0].clientY + e.touches[1].clientY + e.touches[2].clientY)/3;
     const x = ((cx - rect.left)/rect.width)*canvas.width;
     const y = ((cy - rect.top)/rect.height)*canvas.height;
-    if(Math.hypot(x-threeFingerState.startX, y-threeFingerState.startY) > 26) threeFingerState.moved=true;
+    if(Math.hypot(x-threeFingerState.startX, y-threeFingerState.startY) > 32) threeFingerState.moved=true;
     handStates.Mouse.cursor={x,y};
     e.preventDefault();
     return;
@@ -1211,45 +1216,22 @@ function renderLoop(now){
   }
   ctx.restore();
 
-  // Hand landmarks — optimized: batch path
+  // Hand landmarks — minimal lightweight (only index fingertip + pinch ring)
   if(hands.length){
     for(let hi=0; hi<hands.length; hi++){
       const h=hands[hi];
       const lm=h.landmarks;
       ctx.save();
-      ctx.strokeStyle = h.handedness==='Left' ? '#00e676' : '#29b6f6';
-      ctx.lineWidth=1.8;
-      ctx.globalAlpha=0.85;
-      const connections = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17]];
-      ctx.beginPath();
-      connections.forEach(([a,b])=>{
-        const pa=lm[a], pb=lm[b];
-        const ax=(1 - pa.x)*canvas.width, ay=pa.y*canvas.height;
-        const bx=(1 - pb.x)*canvas.width, by=pb.y*canvas.height;
-        ctx.moveTo(ax,ay); ctx.lineTo(bx,by);
-      });
-      ctx.stroke();
-      // dots — only index/thumb + wrist for perf (reduce from 21 to 9)
-      const dotIdx=[0,4,8,12,16,20,5,9,13,17];
-      dotIdx.forEach(i=>{
-        const pt=lm[i]; if(!pt) return;
-        const x=(1 - pt.x)*canvas.width, y=pt.y*canvas.height;
-        ctx.fillStyle=h.handedness==='Left' ? '#00e676' : '#29b6f6';
-        ctx.beginPath(); ctx.arc(x,y, 2.8,0,Math.PI*2); ctx.fill();
-      });
-    const idx=lm[8];
+      ctx.globalAlpha=0.9;
+      const idx=lm[8]; const th=lm[4];
       const cx=(1 - idx.x)*canvas.width, cy=idx.y*canvas.height;
-      const isPinching = Math.hypot(lm[4].x - idx.x, lm[4].y - idx.y) < PINCH_THRESH;
-      ctx.globalAlpha=1;
-      ctx.strokeStyle=isPinching? '#ffd60a' : (h.handedness==='Left'?'#00e676':'#29b6f6');
-      ctx.lineWidth=isPinching?2.2:1.6;
-      ctx.beginPath(); ctx.arc(cx,cy, isPinching? 12:16,0,Math.PI*2); ctx.stroke();
-      ctx.fillStyle=isPinching?'#ffd60a':'#ffffff';
-      ctx.beginPath(); ctx.arc(cx,cy, isPinching?6.5:4,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle=h.handedness==='Left'?'#00e676':'#29b6f6';
-      ctx.font='700 9px Poppins, sans-serif';
-      ctx.textAlign='center';
-      ctx.fillText(h.handedness.toUpperCase(), cx, cy-20);
+      const isPinching = Math.hypot(th.x - idx.x, th.y - idx.y) < PINCH_THRESH;
+      // single fingertip glass ring
+      ctx.strokeStyle=isPinching? '#ffd60a' : 'rgba(255,255,255,0.75)';
+      ctx.lineWidth=isPinching?2.2:1.4;
+      ctx.beginPath(); ctx.arc(cx,cy, isPinching? 11:14,0,Math.PI*2); ctx.stroke();
+      ctx.fillStyle=isPinching?'#ffd60a':'#fff';
+      ctx.beginPath(); ctx.arc(cx,cy, isPinching?5.5:3.5,0,Math.PI*2); ctx.fill();
       ctx.restore();
     }
   }
@@ -1272,11 +1254,10 @@ function renderLoop(now){
     ctx.restore();
   }
 
-  // throttle fps DOM update to 5fps
-  if(now - lastFpsUpdate > 200){
+  if(now - lastFpsUpdate > 350){
     lastFpsUpdate = now;
     const el=document.getElementById('fpsChip');
-    if(el) el.innerHTML= `${Math.round(fps)} FPS • <span id="detectedHands">${hands.length} ${hands.length===1?'hand':'hands'}</span>`;
+    if(el) el.textContent= `${Math.round(fps)} FPS`;
   }
   // auto cap particles if over budget
   if(particles.length > particleBudget) particles.splice(0, particles.length - particleBudget);
@@ -1376,17 +1357,8 @@ function toggleAutoCelebrate(){
   }
 }
 
-// dblclick kept as fallback but debounced to avoid double burst from tap system
-let lastDbl=0;
-canvas.addEventListener('dblclick', (e)=>{
-  const now=performance.now();
-  if(now - lastDbl < 500) return;
-  lastDbl=now;
-  const rect=canvas.getBoundingClientRect();
-  const x=((e.clientX-rect.left)/rect.width)*canvas.width;
-  const y=((e.clientY - rect.top)/rect.height)*canvas.height;
-  fireAt(x,y,activeCracker);
-});
+// dblclick disabled — queueTap handles all single/double/triple uniformly to prevent double-fire
+canvas.addEventListener('dblclick', (e)=>{ e.preventDefault(); });
 
 // Keyboard
 window.addEventListener('keydown', (e)=>{

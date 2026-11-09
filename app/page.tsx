@@ -8,7 +8,6 @@ export default function Page() {
     import("./crackers-client").then((mod) => {
       if (mod.init) mod.init();
     });
-
     const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", onFsChange);
     return () => document.removeEventListener("fullscreenchange", onFsChange);
@@ -25,178 +24,59 @@ export default function Page() {
   };
 
   return (
-    <div className="immersive">
-      <div className="lights" aria-hidden="true">
-        <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
-      </div>
-
-      {/* Camera Stage — Fullscreen */}
+    <div className="immersive minimal">
+      {/* Fullscreen Camera */}
       <div className="stage-wrap" id="stageWrap">
         <video id="video" autoPlay muted playsInline></video>
-        <canvas id="displayCanvas" width={1280} height={720}></canvas>
+        <canvas id="displayCanvas" width={960} height={540}></canvas>
 
-        {/* Top stage chips */}
-        <div className="stage-topbar">
-          <div className="overlay-chip" id="activeChip">🎇 Active: <b id="activeName">Anar</b></div>
-          <div className="overlay-chip"><span className="live"></span> LIVE CAM</div>
-        </div>
-
-        {/* Center bottom legend */}
-        <div className="stage-bottom-center">
-          <div className="cursor-legend">
-            <div className="legend-item"><span className="legend-dot" style={{ background: "#00e676" }}></span> Left</div>
-            <div className="legend-item"><span className="legend-dot" style={{ background: "#29b6f6" }}></span> Right</div>
-            <div className="legend-item" id="fpsChip">30 FPS • <span id="detectedHands">0 hands</span></div>
+        {/* Minimal top glass — only active + sound + fullscreen */}
+        <div className="top-glass">
+          <div className="brand-glass">
+            <span className="logo-mini">🪔</span>
+            <span className="brand-text">Diwali <b>Crackers</b></span>
+            <span className="chip-glass" id="activeChip" style={{ marginLeft: 8 }}>
+              <span id="camDot" className="status-dot" style={{ marginRight: 6 }}></span>
+              <b id="activeName">Anar</b> <span id="camLabel" style={{ opacity: 0.7, fontSize: 10, marginLeft: 4 }}>• Camera ON</span>
+            </span>
           </div>
-        </div>
-
-        {/* Lightweight inline camera prompt — no off option, camera always ON */}
-        <div className="camera-prompt" id="startMessage">
-          <span className="prompt-dot"></span>
-          <span>📷 Camera • Always ON</span>
-          <button className="btn primary small" id="btnEnableCamera">Allow Camera</button>
-          <span className="prompt-hint">Tap to allow • Video stays on device</span>
-        </div>
-        <div className="camera-prompt hidden" id="loadingMessage">
-          <span className="spinner"></span>
-          <span>Loading hand tracking…</span>
-        </div>
-      </div>
-
-      {/* Floating Header — Glass */}
-      <header className="header">
-        <div className="header-inner">
-          <div className="brand">
-            <div className="logo">🪔</div>
-            <div>
-              <h1>Diwali <span>Crackers Online</span></h1>
-              <p>Full-screen AR • 1-Tap place • 2-Tap burst • 3-Finger switch</p>
-            </div>
-          </div>
-          <div className="hdr-actions">
-            <div className="btn" style={{ pointerEvents: 'none', cursor: 'default' }}><span className="status-dot" id="camDot"></span> <span id="camLabel">Camera ON</span></div>
-            <button className="btn" id="btnSound">🔊 Sound ON</button>
-            <div className="vol-control" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(10,6,24,0.85)', padding: '6px 8px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)' }}>
-              <span style={{ fontSize: '10px' }}>🔊</span>
-              <input id="volSlider" type="range" min="0" max="1" step="0.05" defaultValue="0.88" style={{ width: '72px', accentColor: '#ffd60a' }} />
-              <span id="volLabel" style={{ fontSize: '10px', fontWeight: 700, minWidth: '28px' }}>88%</span>
-            </div>
-            <button className="btn small" id="btnClear">🧹 Clear</button>
-            <button className="btn primary small" id="btnCelebrate">✨ Celebrate</button>
-            <button className="btn small" onClick={toggleFullscreen} title="Fullscreen">
-              {isFullscreen ? "↙ Exit" : "⛶ Full"}
+          <div className="actions-glass">
+            <button className="glass-btn" id="btnSound" title="Sound">🔊</button>
+            <button className="glass-btn" id="btnClear" title="Clear">🧹</button>
+            <button className="glass-btn" onClick={toggleFullscreen} title="Fullscreen">
+              {isFullscreen ? "↙" : "⛶"}
             </button>
           </div>
         </div>
-      </header>
 
-      {/* HUD Overlays */}
-      <div className="hud">
-        <div className="hud-row">
-          {/* Left — Quick Stats & Arsenal Mini */}
-          <div className="hud-left">
-            <div className="hud-card">
-              <div className="hud-head">
-                <h2>🧨 Arsenal</h2>
-                <span className="hint" id="burstCountHint">0 bursts</span>
-              </div>
-              <div className="compact">
-                <div className="stat-grid">
-                  <div className="stat"><strong id="statPlaced">0</strong><span>Placed</span></div>
-                  <div className="stat"><strong id="statBursts">0</strong><span>Bursts</span></div>
-                  <div className="stat"><strong id="statStreak">0</strong><span>Streak</span></div>
-                  <div className="stat"><strong id="statHands">—</strong><span>Gesture</span></div>
-                </div>
-                <div className="arsenal-list" id="arsenalList" style={{ marginTop: "8px" }}></div>
-                <div className="quick-actions" style={{ marginTop: "8px" }}>
-                  <button className="btn small" id="btnTopUp">+ Add 5</button>
-                  <button className="btn small" id="btnBurstAll">💥 Burst All</button>
-                </div>
-              </div>
-            </div>
-
-            <div className="hud-card compact" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div className="hands-status" style={{ marginTop: 0, width: "100%" }}>
-                <div className="hand-badge" id="leftHandBadge"><span className="dot"></span> LEFT — waiting</div>
-                <div className="hand-badge right" id="rightHandBadge"><span className="dot"></span> RIGHT — waiting</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right — How to Play (collapsible-ish, transparent) */}
-          <div className="hud-right">
-            <div className="hud-card">
-              <div className="hud-head">
-                <h2>🎆 Cracker Shelf</h2>
-                <span className="hint" id="shelfHint">Pinch & hover</span>
-              </div>
-              <div className="compact" style={{ display: "flex", gap: "8px", flexDirection: "column" }}>
-                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                  <button className="btn small" id="btnPlaceRandom">🎲 Random</button>
-                  <button className="btn small" id="btnNightMode">🌙 Night</button>
-                  <button className="btn small" id="btnSoundToggle2">🔊 Sound</button>
-                </div>
-                <div style={{ fontSize: "10px", color: "var(--muted)", lineHeight: 1.5 }}>
-                  <b style={{ color: "var(--gold)" }}>1-Tap</b> = place &nbsp;•&nbsp; <b style={{ color: "var(--gold)" }}>2-Tap</b> = burst &nbsp;•&nbsp; <b style={{ color: "var(--gold)" }}>3-Tap</b> = cycle+burst<br />
-                  🖖 3-Finger tap = switch cracker • 🖱️ Wheel/Middle-click to cycle
-                </div>
-              </div>
-            </div>
-
-            <div className="gesture-guide">
-              <h3>How to Play</h3>
-              <div className="gesture-row">
-                <div className="gesture-icon">👋</div>
-                <div><b>Show both hands</b><p>Palms open, good lighting, 40-80cm away</p></div>
-              </div>
-              <div className="gesture-row">
-                <div className="gesture-icon">👆</div>
-                <div><b>Move cursor</b><p>Index fingertip glows — follows you</p></div>
-              </div>
-              <div className="gesture-row">
-                <div className="gesture-icon">🤏</div>
-                <div><b>Single Pinch</b><p>Shelf = select • Stage = place cracker</p></div>
-              </div>
-              <div className="gesture-row">
-                <div className="gesture-icon">⚡⚡</div>
-                <div><b>Double Pinch / Tap</b><p>Burst at cursor — on placed cracker = precise!</p></div>
-              </div>
-              <div className="gesture-row">
-                <div className="gesture-icon">🖖</div>
-                <div><b>3-Finger / Triple Tap</b><p>Switch cracker instantly — cycle through all 8</p></div>
-              </div>
-              <p style={{ fontSize: "9px", color: "var(--muted)", marginTop: "6px", textAlign: "center" }}>Fuljhadi streams while pinching • Rocket needs sky • Wheel to cycle</p>
-            </div>
-          </div>
+        {/* Lightweight camera prompt */}
+        <div className="camera-prompt" id="startMessage">
+          <span className="prompt-dot"></span>
+          <span>📷 Tap Allow</span>
+          <button className="glass-btn small primary" id="btnEnableCamera" style={{ padding: "6px 10px" }}>Allow Camera</button>
         </div>
-
-        {/* Bottom Dock — Transparent Cracker Shelf */}
-        <div className="hud-dock">
-          <div className="dock-bar">
-            <div className="dock-left">
-              <span style={{ fontSize: "11px", fontWeight: 800, color: "var(--gold)", letterSpacing: ".6px" }}>🎆 SELECT CRACKER</span>
-              <span className="hint" style={{ fontSize: "10px", color: "var(--muted)" }}>Single-tap shelf • Double-tap stage to burst</span>
-            </div>
-            <div className="dock-right">
-              <span className="overlay-chip" style={{ fontSize: "10px", padding: "4px 8px" }}>🪔 Diwali AR</span>
-            </div>
-          </div>
-          <div className="hud-card" style={{ padding: "10px" }}>
-            <div className="shelf-grid" id="shelfGrid"></div>
-          </div>
-          <div style={{ display: "flex", justifyContent: "center", gap: "8px" }}>
-            <span style={{ fontSize: "10px", color: "var(--muted)", background: "rgba(10,6,24,0.55)", padding: "4px 8px", borderRadius: "999px", border: "1px solid rgba(255,255,255,0.08)" }}>
-              🎤 Camera + ✋ Hands = Magic • 💡 Good lighting helps • 🖱️ Mouse fallback always on
-            </span>
-          </div>
+        <div className="camera-prompt hidden" id="loadingMessage">
+          <span className="spinner"></span>
+          <span>Loading hands…</span>
         </div>
       </div>
 
-      <div className="rangoli">
-        <span>🪔</span> <span>✨</span> <span>🌸</span> <span>🪔</span> <span>🎆</span> <span>🪔</span> <span>🌸</span> <span>✨</span> <span>🪔</span>
+      {/* Bottom Dock — Only firecracker selection (minimal glass) */}
+      <div className="bottom-dock glass">
+        <div className="dock-head">
+          <span className="dock-title">🎆 SELECT CRACKER</span>
+          <span className="dock-hint">1-tap place • 2-tap burst • 3-tap / 3-finger cycle</span>
+          <span id="fpsChip" className="fps-mini">— FPS</span>
+        </div>
+        <div className="shelf-grid" id="shelfGrid"></div>
       </div>
 
       <div id="toast"></div>
+
+      {/* Hidden fallbacks for JS (kept in DOM but not visible to save null checks) */}
+      <div style={{ display: "none" }} aria-hidden>
+        <span id="statPlaced">0</span><span id="statBursts">0</span><span id="statStreak">0</span><span id="statHands">—</span><span id="burstCountHint"></span><span id="shelfHint"></span><div id="arsenalList"></div><div id="detectedHands"></div><div id="leftHandBadge"></div><div id="rightHandBadge"></div><button id="btnSoundToggle2"></button><button id="btnCelebrate"></button><button id="btnPlaceRandom"></button><button id="btnBurstAll"></button><button id="btnNightMode"></button><button id="btnTopUp"></button><div id="volSlider"></div><div id="volLabel"></div><div id="camDot"></div>
+      </div>
     </div>
   );
 }
