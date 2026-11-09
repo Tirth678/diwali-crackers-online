@@ -76,6 +76,11 @@ export default function Page() {
           <div className="hdr-actions">
             <button className="btn" id="btnCamera"><span className="status-dot" id="camDot"></span> <span id="camLabel">Camera ON</span></button>
             <button className="btn" id="btnSound">🔊 Sound ON</button>
+            <div className="vol-control" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(10,6,24,0.85)', padding: '6px 8px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)' }}>
+              <span style={{ fontSize: '10px' }}>🔊</span>
+              <input id="volSlider" type="range" min="0" max="1" step="0.05" defaultValue="0.88" style={{ width: '72px', accentColor: '#ffd60a' }} />
+              <span id="volLabel" style={{ fontSize: '10px', fontWeight: 700, minWidth: '28px' }}>88%</span>
+            </div>
             <button className="btn small" id="btnClear">🧹 Clear</button>
             <button className="btn primary small" id="btnCelebrate">✨ Celebrate</button>
             <button className="btn small" onClick={toggleFullscreen} title="Fullscreen">

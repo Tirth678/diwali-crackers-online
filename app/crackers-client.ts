@@ -18,6 +18,8 @@ let placedCrackers = [];
 let particles = [];
 let shockwaves = [];
 let stats = { placed:0, bursts:0, streak:0 };
+let flashAlpha = 0;
+let smokeParticles: any[] = [];
 let soundOn = true;
 let cameraOn = false;
 let nightMode = false;
@@ -50,13 +52,138 @@ const rightBadge = document.getElementById('rightHandBadge');
 video.style.transform = 'none';
 canvas.style.transform = 'none';
 
-// Audio
+// Audio — Real samples + synth fallback for ultra-realism
 let audioCtx = null;
+let masterVolume = 0.88;
+let realSounds = {};
+let soundPoolIdx = {};
+let audioUnlocked = false;
+
 function ensureAudio(){
-  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if(!audioCtx) audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
   if(audioCtx.state === 'suspended') audioCtx.resume();
+  // unlock HTMLAudio pools on first gesture
+  if(!audioUnlocked){
+    audioUnlocked = true;
+    Object.values(realSounds).forEach(pool=>{
+      (pool as any).forEach((a: HTMLAudioElement)=>{
+        a.volume = 0;
+        a.play().then(()=>{a.pause(); a.currentTime=0; a.volume=masterVolume;}).catch(()=>{})
+      })
+    })
+  }
 }
-function playSound(type){
+
+function preloadRealSounds(){
+  const map: Record<string,string> = {
+    anar:'anar.wav',
+    fountain:'anar.wav',
+    rocket:'rocket.wav',
+    chakri:'chakri.wav',
+    bomb:'bomb.wav',
+    sutli:'bomb.wav',
+    fuljhadi:'fuljhadi.wav',
+    sparkler:'fuljhadi.wav',
+    laxmi:'laxmi.wav',
+    megabomb:'laxmi.wav',
+    pop:'pop.wav',
+    skyshot:'skyshot.wav',
+    sky:'skyshot.wav',
+    firework:'skyshot.wav'
+  };
+  Object.entries(map).forEach(([key,file])=>{
+    const pool: HTMLAudioElement[] = [];
+    for(let i=0;i<4;i++){
+      const a = new Audio(`/sounds/${file}`);
+      a.preload='auto';
+      a.volume=masterVolume;
+      pool.push(a);
+    }
+    (realSounds as any)[key]=pool;
+    (soundPoolIdx as any)[key]=0;
+  });
+}
+
+function setupVolumeControl(){
+  const slider = document.getElementById('volSlider') as HTMLInputElement;
+  if(!slider) return;
+  slider.value = String(masterVolume);
+  slider.addEventListener('input', (e)=>{
+    masterVolume = parseFloat((e.target as HTMLInputElement).value);
+    try{
+      Object.values(realSounds).forEach((pool:any)=>{
+        pool.forEach((a:HTMLAudioElement)=> a.volume = masterVolume);
+      });
+    }catch{}
+    if(masterVolume>0) soundOn=true;
+    const pct = Math.round(masterVolume*100);
+    const label = document.getElementById('volLabel');
+    if(label) label.textContent = pct+'%';
+  });
+}
+
+function playRealSound(type: string, xNorm=0.5){
+  if(!soundOn) return false;
+  const pool = (realSounds as any)[type] || (realSounds as any)[type.replace('-','')] || null;
+  if(!pool) return false;
+  const idx = (soundPoolIdx as any)[type] || 0;
+  (soundPoolIdx as any)[type] = (idx+1)%pool.length;
+  const audio: HTMLAudioElement = pool[idx];
+  try{
+    audio.currentTime = 0;
+    // spatial volume: slightly quieter at edges, louder center for immersion
+    const centerBoost = 1 - Math.abs(xNorm-0.5)*0.2; // 0.9-1.0
+    audio.volume = Math.min(1, masterVolume * centerBoost * (0.92 + Math.random()*0.16));
+    // slight playbackRate variation for realism
+    (audio as any).playbackRate = 0.96 + Math.random()*0.08;
+    const p = audio.play();
+    if(p) p.catch(()=>{});
+    return true;
+  }catch(e){ return false; }
+}
+
+function playSubBass(type:string){
+  // subtle low-end layer to make real samples feel heavier
+  if(!soundOn || !audioCtx) return;
+  const now = audioCtx.currentTime;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.type='sine';
+  o.frequency.setValueAtTime(type==='laxmi'||type==='megabomb'? 60 : 75, now);
+  o.frequency.exponentialRampToValueAtTime(28, now+0.25);
+  g.gain.setValueAtTime(0.22, now);
+  g.gain.exponentialRampToValueAtTime(0.001, now+0.28);
+  o.start(now); o.stop(now+0.3);
+}
+
+function playSound(type:string, x?:number, y?:number){
+  if(!soundOn) return;
+  ensureAudio();
+  // haptics for realism
+  try{
+    if((navigator as any).vibrate){
+      if(type==='bomb'||type==='laxmi'||type==='megabomb') (navigator as any).vibrate(120);
+      else if(type==='rocket') (navigator as any).vibrate([30,40,80]);
+      else if(type==='skyshot') (navigator as any).vibrate([40,30,50]);
+      else (navigator as any).vibrate(30);
+    }
+  }catch{}
+  const xNorm = x!==undefined ? x/1280 : 0.5;
+  const played = playRealSound(type, xNorm);
+  // add sub-bass for heavy crackers even when real played
+  if(type==='bomb' || type==='laxmi' || type==='megabomb' || type==='sutli'){
+    playSubBass(type);
+  }
+  if(!played){
+    playSynth(type);
+  }
+}
+
+function playSynth(type:string){
+  if(!soundOn) return;
+  ensureAudio();
+
   if(!soundOn) return;
   ensureAudio();
   const now = audioCtx.currentTime;
@@ -233,11 +360,15 @@ function spawnParticles(x,y,type){
       });
     }
     shockwaves.push({x,y, r:0, maxR:90, life:0, maxLife:0.35, color});
+    flashAlpha = 0.18;
+    for(let i=0;i<8;i++) particles.push({x, y: y-6, vx:(Math.random()-0.5)*0.9, vy:-0.5-Math.random()*0.7, life:1.6, maxLife:1.6, size:4+Math.random()*4, color:'rgba(100,100,100,0.28)', gravity:-0.02, drag:0.97, smoke:true});
   } else if(type==='rocket'){
     const launchY = y;
     const targetY = y - 220 - Math.random()*180;
     const targetX = x + (Math.random()-0.5)*60;
     for(let i=0;i<20;i++){
+      // smoke trail
+      if(i%2===0) particles.push({x: x + (Math.random()-0.5)*8, y: launchY - i*10, vx:(Math.random()-0.5)*0.5, vy:-0.6-Math.random()*0.3, life:0.9, maxLife:0.9, size:4+Math.random()*5, color:'rgba(120,120,120,0.32)', gravity:-0.015, drag:0.97, smoke:true});
       particles.push({
         x: x + (Math.random()-0.5)*6,
         y: launchY - i*10,
@@ -257,6 +388,8 @@ function spawnParticles(x,y,type){
         });
       }
       shockwaves.push({x:targetX, y:targetY, r:0, maxR:140, life:0, maxLife:0.45, color:'#ffd60a'});
+      flashAlpha = 0.45;
+      for(let i=0;i<10;i++) particles.push({x:targetX, y:targetY, vx:(Math.random()-0.5)*0.6, vy:-0.4-Math.random()*0.5, life:1.4, maxLife:1.4, size:5+Math.random()*6, color:'rgba(90,90,90,0.38)', gravity:-0.018, drag:0.98, smoke:true});
       for(let i=0;i<18;i++){
         const a = Math.random()*Math.PI*2;
         particles.push({x:targetX,y:targetY,vx:Math.cos(a)*1.5, vy:Math.sin(a)*1.5, life:0.9, maxLife:0.9, size:1.5, color:'#ffffff', gravity:0.04, drag:0.99});
@@ -266,6 +399,7 @@ function spawnParticles(x,y,type){
   } else if(type==='chakri'){
     const cx=x, cy=y;
     shockwaves.push({x:cx,y:cy,r:0,maxR:70,life:0,maxLife:0.6,color:'#00e676'});
+    flashAlpha = 0.12;
     for(let i=0;i<70;i++){
       const a = (i/70)*Math.PI*2;
       const r = 8 + Math.random()*22;
@@ -297,6 +431,12 @@ function spawnParticles(x,y,type){
       });
     }
     particles.push({x,y,vx:0,vy:0,life:0.18,maxLife:0.18,size:maxR, color:'#ffffff', flash:true});
+    flashAlpha = isMega ? 0.72 : 0.55;
+    for(let i=0;i<18;i++){
+      const a=Math.random()*Math.PI*2;
+      const s= 0.8+Math.random()*1.8;
+      particles.push({x,y,vx:Math.cos(a)*s*0.35, vy:Math.sin(a)*s*0.35 - Math.random()*0.5, life:1.1+Math.random()*0.7, maxLife:1.9, size:6+Math.random()*8, color:'rgba(140,120,100,0.42)', gravity:-0.025, drag:0.985, smoke:true});
+    }
   } else if(type==='fuljhadi'){
     for(let i=0;i<55;i++){
       const a=Math.random()*Math.PI*2;
@@ -319,6 +459,7 @@ function spawnParticles(x,y,type){
         const bx = x + (Math.random()-0.5)*80;
         const by = y - Math.random()*60 - 20;
         shockwaves.push({x:bx,y:by,r:0,maxR:70,life:0,maxLife:0.32,color:b.color});
+        if(idx===0) flashAlpha = 0.35;
         for(let i=0;i<b.count;i++){
           const a=Math.random()*Math.PI*2;
           const s=3+Math.random()*6;
@@ -333,6 +474,7 @@ function spawnParticles(x,y,type){
       particles.push({x,y,vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:0.5, maxLife:0.5, size:2+Math.random()*2, color: Math.random()>0.5? '#29b6f6':'#ffd60a', gravity:0.12, drag:0.96});
     }
     shockwaves.push({x,y,r:0,maxR:55,life:0,maxLife:0.28,color:'#29b6f6'});
+    flashAlpha = 0.20;
   }
 }
 
@@ -344,7 +486,7 @@ function fireAt(x,y,type){
   stats.streak++;
   renderArsenal();
   const t = CRACKER_TYPES.find(c=>c.id===type);
-  playSound(t ? t.sound : 'firework');
+  playSound(t ? t.sound : 'firework', x, y);
   showToast(`${t.emoji} ${t.name} burst!`, t.color);
   let idx=-1; let bestDist=9999;
   placedCrackers.forEach((p,i)=>{
@@ -678,6 +820,12 @@ function renderLoop(now){
     ctx.fillText('Enable camera for hand-gesture magic • Or just click & double-click!', canvas.width/2, 84);
   }
 
+  // Realistic flash illumination from bursts
+  if(flashAlpha>0){
+    ctx.fillStyle = `rgba(255, 244, 180, ${flashAlpha})`;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    flashAlpha = Math.max(0, flashAlpha - dt*3.8);
+  }
   // Placed crackers
   placedCrackers.forEach(p=>{
     const bob = Math.sin(now*0.004 + p.id)*4;
@@ -734,6 +882,16 @@ function renderLoop(now){
       ctx.arc(p.x, p.y, p.size * (1 - alpha)*1.5 + 10, 0, Math.PI*2);
       ctx.fill();
       ctx.globalAlpha=1;
+      continue;
+    }
+    if((p as any).smoke){
+      ctx.globalAlpha = alpha * 0.38;
+      ctx.fillStyle = p.color;
+      const grow = 1 + (1 - alpha)*0.7;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y - (1-alpha)*12, p.size * grow, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
       continue;
     }
     ctx.globalAlpha = alpha;
@@ -953,7 +1111,9 @@ window.addEventListener('keydown', (e)=>{
 });
 canvas.addEventListener('contextmenu', e=> e.preventDefault());
 
-// Init
+// Init — preload real cracker sounds for realism
+preloadRealSounds();
+setupVolumeControl();
 renderShelf();
 renderArsenal();
 updateActiveUI();
