@@ -509,26 +509,75 @@ function placeCracker(x,y,type){
   }
 }
 
-// Camera
+// Camera — robust auto-enable with fallbacks
 async function startCamera(){
   if(cameraOn) return;
+  const dot = camDot as any;
+  const label = camLabel as any;
+  const startMsg = startMessage as any;
+  const camBtn = document.getElementById('btnCamera') as any;
   try{
-    const stream = await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280}, height:{ideal:720}, facingMode:'user'}, audio:false});
-    video.srcObject = stream;
-    await video.play();
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      throw new Error('Camera API not available — use HTTPS / localhost');
+    }
+    if(dot) dot.classList.remove('off');
+    if(label) label.textContent='Starting...';
+    if(startMsg) startMsg.classList.add('hidden');
+    let stream: MediaStream | null = null;
+    const tries: any[] = [
+      {video:{width:{ideal:1280}, height:{ideal:720}, facingMode:'user'}, audio:false},
+      {video:{width:{ideal:640}, height:{ideal:480}, facingMode:'user'}, audio:false},
+      {video:{facingMode:'user'}, audio:false},
+      {video:true, audio:false}
+    ];
+    let lastErr: any = null;
+    for(const c of tries){
+      try{ stream = await navigator.mediaDevices.getUserMedia(c); break; }catch(e){ lastErr=e; }
+    }
+    if(!stream) throw lastErr;
+    (video as any).srcObject = stream;
+    (video as any).muted = true;
+    (video as any).playsInline = true;
+    video.setAttribute('playsinline','');
+    // wait for metadata then play
+    await new Promise<void>((res, rej)=>{
+      const onMeta = ()=> {
+        (video as any).play().then(()=>res()).catch(rej);
+      };
+      video.onloadedmetadata = onMeta;
+      // fallback if already loaded
+      setTimeout(()=>{
+        if(video.readyState >= 1) (video as any).play().then(()=>res()).catch(rej);
+      }, 600);
+      // timeout
+      setTimeout(()=> rej(new Error('Video play timeout')), 4000);
+    });
     cameraOn=true;
-    camDot.classList.remove('off');
-    camLabel.textContent='Camera ON';
-    document.getElementById('btnCamera').classList.add('active');
-    startMessage.classList.add('hidden');
-    showToast('Camera started — show your hands!', '#00e676');
+    if(dot) dot.classList.remove('off');
+    if(label) label.textContent='Camera ON';
+    if(camBtn) camBtn.classList.add('active');
+    if(startMsg) startMsg.classList.add('hidden');
+    showToast('Camera started — show your hands! 👋', '#00e676');
     initHandTracking();
-  }catch(e){
-    console.warn(e);
-    showToast('Camera blocked — using mouse/touch fallback', '#ff3b30');
+  }catch(e:any){
+    console.warn('Camera failed', e);
+    let msg = e?.message || e?.name || 'Unknown error';
+    if(/NotAllowed/i.test(msg)) msg = 'Permission denied — tap Enable Camera and allow';
+    else if(/NotFound/i.test(msg)) msg = 'No camera found';
+    else if(/NotReadable|Abort/i.test(msg)) msg = 'Camera busy — close other apps';
+    else if(/Secure/i.test(msg)) msg = 'Need HTTPS — open in new tab';
+    else if(/play timeout/i.test(msg)) msg = 'Camera timeout — try again';
+    showToast(`Camera failed: ${msg} — mouse fallback active`, '#ff3b30');
     cameraOn=false;
-    camDot.classList.add('off');
-    camLabel.textContent='Camera OFF';
+    if(dot) dot.classList.add('off');
+    if(label) label.textContent='Camera OFF';
+    if(startMsg){
+      startMsg.classList.remove('hidden');
+      const h3 = startMsg.querySelector('h3');
+      if(h3) h3.textContent = '📷 Camera needs permission';
+      const p = startMsg.querySelector('p');
+      if(p) p.innerHTML = `Error: ${msg}<br>Click <b>Enable Camera</b> below and allow when prompted.<br><small style="opacity:0.8">Tip: If in preview iframe, open in new tab and allow camera.</small>`;
+    }
   }
 }
 function stopCamera(){
@@ -1120,5 +1169,17 @@ updateActiveUI();
 requestAnimationFrame(renderLoop);
 requestAnimationFrame(predictLoop);
 setTimeout(()=> showToast('Welcome! Select cracker, single-tap to place & double-tap to burst 🎆','#ffd60a'), 900);
+  // Directly enable camera — auto-start + one-tap anywhere fallback
+  setTimeout(()=> { if(!cameraOn) startCamera(); }, 500);
+  // One-tap unlock: first click anywhere tries camera (helps with autoplay policy)
+  const oneTap = ()=> { if(!cameraOn) startCamera(); document.removeEventListener('click', oneTap); document.removeEventListener('touchstart', oneTap); };
+  document.addEventListener('click', oneTap, {once:true} as any);
+  document.addEventListener('touchstart', oneTap, {once:true} as any);
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState==='visible' && !cameraOn && !document.hidden) {
+      // gentle retry when tab becomes visible
+      setTimeout(()=> { if(!cameraOn) startCamera(); }, 800);
+    }
+  });
 
 }
