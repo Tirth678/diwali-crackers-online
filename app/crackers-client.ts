@@ -921,50 +921,93 @@ function toggleCamera(){
   else showToast('Camera is always ON — enjoy the celebration! 🪔', '#00e676');
 }
 
-// Hand tracking
+// ===== PRO HAND TRACKING — smooth thumb+index with OneEuro filtering & adaptive pinch =====
 let handLandmarker = null;
 let lastVideoTime = -1;
 let hands = [];
 let handStates = {
-  Left: { isPinching:false, pinchStart:0, cursor:{x:0,y:0}, tapCount:0, tapTimer:null, lastTapTime:0, lastTapX:0, lastTapY:0 },
-  Right:{ isPinching:false, pinchStart:0, cursor:{x:0,y:0}, tapCount:0, tapTimer:null, lastTapTime:0, lastTapX:0, lastTapY:0 },
-  Mouse:{ isPinching:false, pinchStart:0, cursor:{x: canvas.width/2, y: canvas.height/2 }, tapCount:0, tapTimer:null, lastTapTime:0, lastTapX:0, lastTapY:0 }
+  Left: { isPinching:false, pinchStart:0, cursor:{x:0,y:0}, thumb:{x:0,y:0}, tapCount:0, tapTimer:null, lastTapTime:0, lastTapX:0, lastTapY:0, pinchFrames:0, releaseFrames:0, handScale:0.15 },
+  Right:{ isPinching:false, pinchStart:0, cursor:{x:0,y:0}, thumb:{x:0,y:0}, tapCount:0, tapTimer:null, lastTapTime:0, lastTapX:0, lastTapY:0, pinchFrames:0, releaseFrames:0, handScale:0.15 },
+  Mouse:{ isPinching:false, pinchStart:0, cursor:{x: canvas.width/2, y: canvas.height/2 }, thumb:{x:0,y:0}, tapCount:0, tapTimer:null, lastTapTime:0, lastTapX:0, lastTapY:0, pinchFrames:0, releaseFrames:0 }
 };
-const PINCH_THRESH = 0.068; // focused pinch threshold
-const PINCH_RELEASE_THRESH = 0.082; // hysteresis
-// --- Improved tap system ---
-const TAP_TIMEOUT = 300; // snappy: 300ms for single, triple still works (2 gaps = 600ms total)
-const HOLD_MAX_MS = 380; // crisp tap window
-const TAP_MOVE_TOL = 28;
+const PINCH_ON_RATIO = 0.32;  // pinch when thumb-index < 32% of hand size
+const PINCH_OFF_RATIO = 0.42; // release when > 42% (hysteresis)
+const TAP_TIMEOUT = 300;
+const HOLD_MAX_MS = 420;
+const TAP_MOVE_TOL = 32;
 const THREE_FINGER_HOLD_MAX = 500;
 let lastTapVisual = 0;
 let threeFingerState = { active:false, startTime:0, startX:0, startY:0, moved:false };
 let lastFpsUpdate = 0;
-let isLowPerf = false; // enhanced effects mode - was lightweight default
+let isLowPerf = false;
 try{ isLowPerf = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || window.innerWidth < 600; }catch{}
-let particleBudget = 900; // fullscreen immersive budget
+let particleBudget = 900;
 let lastPredictTime = 0;
-let PREDICT_INTERVAL = 65; // focused ~15fps precise
-let screenWashes = []; // fullscreen color wash overlays {color, life, maxLife}
-let emberRain = []; // falling embers across screen
-let confettiPieces = []; // confetti rain
-let lightStreaks = []; // shooting light streaks
-let rangoliBursts = []; // expanding rangoli
-let flashColor = '#ffd60a'; // dynamic flash color
+let PREDICT_INTERVAL = 16; // 60fps smooth — was 65 throttled
+let screenWashes = [];
+let emberRain = [];
+let confettiPieces = [];
+let lightStreaks = [];
+let rangoliBursts = [];
+let flashColor = '#ffd60a';
 let handCache = { count:0, text:'0 hands' };
 let lastHandDomUpdate = 0;
+
+// OneEuro Filter for buttery smooth tracking (no jitter, no lag)
+class OneEuroFilter {
+  constructor(freq=60, minCutoff=1.0, beta=0.007, dCutoff=1.0){
+    this.freq=freq; this.minCutoff=minCutoff; this.beta=beta; this.dCutoff=dCutoff;
+    this.xPrev=null; this.dxPrev=0; this.tPrev=null;
+  }
+  alpha(cutoff){
+    const te=1/this.freq;
+    const tau=1/(2*Math.PI*cutoff);
+    return 1/(1+tau/te);
+  }
+  filter(x, t){
+    if(this.tPrev===null){ this.xPrev=x; this.tPrev=t; return x; }
+    const dt=(t-this.tPrev)/1000;
+    if(dt<=0) return this.xPrev;
+    this.freq=1/dt;
+    const dx=(x-this.xPrev)/dt;
+    const alphaD=this.alpha(this.dCutoff);
+    const dxHat=alphaD*dx + (1-alphaD)*this.dxPrev;
+    const cutoff=this.minCutoff + this.beta*Math.abs(dxHat);
+    const alphaX=this.alpha(cutoff);
+    const xHat=alphaX*x + (1-alphaX)*this.xPrev;
+    this.xPrev=xHat; this.dxPrev=dxHat; this.tPrev=t;
+    return xHat;
+  }
+  reset(){ this.xPrev=null; this.dxPrev=0; this.tPrev=null; }
+}
+const handFilters = {
+  Left: { thumbX: new OneEuroFilter(60,1.2,0.008), thumbY: new OneEuroFilter(60,1.2,0.008), indexX: new OneEuroFilter(60,1.2,0.008), indexY: new OneEuroFilter(60,1.2,0.008) },
+  Right:{ thumbX: new OneEuroFilter(60,1.2,0.008), thumbY: new OneEuroFilter(60,1.2,0.008), indexX: new OneEuroFilter(60,1.2,0.008), indexY: new OneEuroFilter(60,1.2,0.008) },
+  Mouse:{ thumbX: new OneEuroFilter(60,2,0.01), thumbY: new OneEuroFilter(60,2,0.01), indexX: new OneEuroFilter(60,2,0.01), indexY: new OneEuroFilter(60,2,0.01) }
+};
+function smoothHandPos(handLabel, thumbRaw, indexRaw, now){
+  const f=handFilters[handLabel] || handFilters.Mouse;
+  const sx=f.indexX.filter(indexRaw.x, now);
+  const sy=f.indexY.filter(indexRaw.y, now);
+  const tx=f.thumbX.filter(thumbRaw.x, now);
+  const ty=f.thumbY.filter(thumbRaw.y, now);
+  return { index:{x:sx,y:sy}, thumb:{x:tx,y:ty} };
+}
+function resetHandFilters(label){
+  const f=handFilters[label];
+  if(f){ f.thumbX.reset(); f.thumbY.reset(); f.indexX.reset(); f.indexY.reset(); }
+}
 
 async function initHandTracking(){
   if(handLandmarker) return;
   loadingMessage.classList.remove('hidden');
+  loadingMessage.querySelector('span:last-child') && (loadingMessage.querySelector('span:last-child').textContent='Loading pro hand tracking…');
   try{
+    // Primary: MediaPipe Tasks Vision (latest, GPU)
     const visionUrl = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs';
-    // Use Function to avoid webpack bundling the dynamic CDN import
     const vision: any = await (Function('u', 'return import(u)') as any)(visionUrl);
     const { FilesetResolver, HandLandmarker } = vision;
-    const fileset = await FilesetResolver.forVisionTasks(
-      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
-    );
+    const fileset = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
     handLandmarker = await HandLandmarker.createFromOptions(fileset, {
       baseOptions: {
         modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
@@ -972,19 +1015,97 @@ async function initHandTracking(){
       },
       runningMode: 'VIDEO',
       numHands: 2,
-      minHandDetectionConfidence: 0.65,
-      minHandPresenceConfidence: 0.65,
-      minTrackingConfidence: 0.62
+      minHandDetectionConfidence: 0.58,
+      minHandPresenceConfidence: 0.58,
+      minTrackingConfidence: 0.58
     });
     loadingMessage.classList.add('hidden');
-    showToast('Hand tracking ready — both hands tracked!', '#00e676');
+    showToast('✋ Pro hand tracking ready — thumb+index smooth', '#00e676');
     requestAnimationFrame(predictLoop);
   }catch(err){
-    console.error('Hand tracking load failed', err);
-    loadingMessage.classList.add('hidden');
-    showToast('Hand AI failed — mouse/touch still works', '#ff9a00');
-    handLandmarker=null;
+    console.warn('Tasks Vision failed, trying fallback Hands API', err);
+    try{
+      // Fallback: classic MediaPipe Hands via CDN (more tolerant on some devices)
+      await loadClassicHands();
+    }catch(err2){
+      console.error('All hand tracking failed', err2);
+      loadingMessage.classList.add('hidden');
+      showToast('Hand AI failed — mouse/touch still works', '#ff9a00');
+      handLandmarker=null;
+    }
   }
+}
+async function loadClassicHands(){
+  // Dynamically inject MediaPipe Hands classic pipeline
+  return new Promise((resolve, reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js';
+    s.crossOrigin='anonymous';
+    s.onload=async ()=>{
+      try{
+        const Hands=(window as any).Hands;
+        if(!Hands) throw new Error('Hands not loaded');
+        const handsInst=new Hands({locateFile:(f)=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${f}`});
+        handsInst.setOptions({maxNumHands:2, modelComplexity:1, minDetectionConfidence:0.6, minTrackingConfidence:0.6});
+        handsInst.onResults((res)=>{
+          // Convert classic Hands results to our hands array format for shared predict
+          const now=performance.now();
+          hands=[];
+          if(res.multiHandLandmarks){
+            for(let i=0;i<res.multiHandLandmarks.length;i++){
+              const lm=res.multiHandLandmarks[i];
+              const handed=res.multiHandedness?.[i]?.label || (i===0?'Right':'Left');
+              // classic Hands gives normalized 0-1 directly (not mirrored)
+              const idx=lm[8], th=lm[4];
+              // smooth
+              const sm=smoothHandPos(handed, {x: th.x, y: th.y}, {x: idx.x, y: idx.y}, now);
+              const cx=(1-sm.index.x)*canvas.width;
+              const cy=sm.index.y*canvas.height;
+              const tx=(1-sm.thumb.x)*canvas.width;
+              const ty=sm.thumb.y*canvas.height;
+              // hand scale from wrist(0) to middle tip(12)
+              const wrist=lm[0], mid=lm[12];
+              const handScale=Math.hypot(mid.x-wrist.x, mid.y-wrist.y) || 0.18;
+              const pinchDist=Math.hypot(sm.index.x - sm.thumb.x, sm.index.y - sm.thumb.y);
+              const ratio=handScale>0.02 ? pinchDist/handScale : 1;
+              let isPinchRaw=false;
+              const st=handStates[handed];
+              const thresh=st && st.isPinching ? PINCH_OFF_RATIO : PINCH_ON_RATIO;
+              isPinchRaw=ratio < thresh;
+              // debounce 2 frames
+              if(isPinchRaw){ st.pinchFrames=(st.pinchFrames||0)+1; st.releaseFrames=0; } else { st.releaseFrames=(st.releaseFrames||0)+1; st.pinchFrames=0; }
+              const isPinch= st.isPinching ? st.releaseFrames<2 : st.pinchFrames>=2;
+              hands.push({landmarks:lm, handedness:handed, thumbTip:{x:tx,y:ty}, indexTip:{x:cx,y:cy}, handScale, ratio});
+              // update states
+              handStates[handed].cursor={x:cx,y:cy}; handStates[handed].thumb={x:tx,y:ty};
+              handlePinch(handed, isPinch, cx, cy);
+            }
+            const focusEl=document.getElementById('handFocus');
+            if(focusEl) focusEl.classList.toggle('active', hands.length>0);
+          }
+        });
+        // Use camera utils to feed video
+        const camScript=document.createElement('script');
+        camScript.src='https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js';
+        camScript.onload=()=>{
+          const Camera=(window as any).Camera;
+          const cam=new Camera(video, {
+            onFrame: async ()=>{ await handsInst.send({image: video}); },
+            width:640, height:480
+          });
+          cam.start();
+          handLandmarker={ isClassic:true, handsInst };
+          loadingMessage.classList.add('hidden');
+          showToast('✋ Hands tracking (classic) ready', '#00e676');
+          resolve(null);
+        };
+        camScript.onerror=reject;
+        document.head.appendChild(camScript);
+      }catch(e){ reject(e); }
+    };
+    s.onerror=reject;
+    document.head.appendChild(s);
+  });
 }
 
 function showTapFeedback(x,y, count){
@@ -1019,13 +1140,14 @@ function dispatchTap(handLabel, count, x, y){
 function handlePinch(handLabel, isPinchingNow, cursorX, cursorY){
   const state = handStates[handLabel];
   if(!state) return;
-  // focused zone: 18% margin all sides (matches CSS 62% width)
+  // Track both thumb+index — allow full screen (no focus block, just update)
+  // Very permissive edge margin (4%) so gestures work edge-to-edge
   const nx = cursorX / canvas.width, ny = cursorY / canvas.height;
-  const inFocus = nx > 0.12 && nx < 0.88 && ny > 0.10 && ny < 0.88;
-  // Still update cursor for visual, but don't trigger tap if far outside focus
+  const inBounds = nx > 0.02 && nx < 0.98 && ny > 0.02 && ny < 0.98;
+  // Always update cursor & thumb for visual feedback, even at edges
   state.cursor.x=cursorX; state.cursor.y=cursorY;
-  if(!inFocus && handLabel!=='Mouse'){
-    // show but don't count as tap — just track movement
+  // Only ignore if wildly out of canvas (near 0,0 default before tracking)
+  if(!inBounds && handLabel!=='Mouse' && state.lastTapTime===0 && Math.hypot(cursorX, cursorY)<40){
     return;
   }
   if(isPinchingNow !== state.isPinching){
@@ -1260,62 +1382,82 @@ function updateHoverStates(gx,gy){
 
 function predictLoop(){
   const now = performance.now();
-  if(now - lastPredictTime >= PREDICT_INTERVAL && video.readyState >= 2 && handLandmarker){
-    if(video.currentTime !== lastVideoTime){
-      lastPredictTime = now;
-      lastVideoTime = video.currentTime;
+  if(!handLandmarker || video.readyState < 2){
+    requestAnimationFrame(predictLoop);
+    return;
+  }
+  // Classic fallback: hands populated via onResults callback from Camera
+  if(handLandmarker.isClassic){
+    const hasFocusedHand = hands.length>0;
+    const focusEl=document.getElementById('handFocus');
+    if(focusEl) focusEl.classList.toggle('active', hasFocusedHand);
+    if(now - lastHandDomUpdate > 100){
+      lastHandDomUpdate=now;
+      const c=hands.length;
       try{
-        const results = handLandmarker.detectForVideo(video, now);
-        hands = [];
-        let hasFocusedHand = false;
-        if(results.landmarks && results.landmarks.length){
-          for(let i=0;i<results.landmarks.length;i++){
-            const lm = results.landmarks[i];
-            const handed = (results.handednesses && results.handednesses[i] && results.handednesses[i][0] && results.handednesses[i][0].categoryName) || (i===0?'Right':'Left');
-            // Focus filter: only hands with index tip inside central 70%x65% zone count as focused
-            const ix = 1 - lm[8].x; const iy = lm[8].y;
-            const inFocus = ix > 0.15 && ix < 0.85 && iy > 0.15 && iy < 0.85;
-            if(inFocus) hasFocusedHand = true;
-            hands.push({landmarks:lm, handedness:handed, inFocus});
-            const thumb = lm[4]; const index = lm[8];
-            const d = Math.hypot(thumb.x - index.x, thumb.y - index.y);
-            // hysteresis: need tighter to start, looser to release
-            const state = handStates[handed];
-            const thresh = state && state.isPinching ? PINCH_RELEASE_THRESH : PINCH_THRESH;
-            const isPinch = d < thresh;
-            const cx = (1 - index.x) * canvas.width;
-            const cy = index.y * canvas.height;
-            // Smoothing: lerp cursor for stable tap position
-            if(state){
-              const lerp = 0.45;
-              state.cursor.x = state.cursor.x*lerp + cx*(1-lerp);
-              state.cursor.y = state.cursor.y*lerp + cy*(1-lerp);
-              handlePinch(handed, isPinch, state.cursor.x, state.cursor.y);
-            } else {
-              handlePinch(handed, isPinch, cx, cy);
-            }
-          }
-        }
-        // Visual focus cue
-        const focusEl = document.getElementById('handFocus');
-        if(focusEl) focusEl.classList.toggle('active', hasFocusedHand);
-
-        // throttle DOM updates to ~10fps
-        if(now - lastHandDomUpdate > 100){
-          lastHandDomUpdate = now;
-          const c = hands.length;
-          detectedHandsEl.textContent = `${c} ${c===1?'hand':'hands'}`;
-          const hasLeft = hands.some(h=>h.handedness==='Left');
-          const hasRight = hands.some(h=>h.handedness==='Right');
-          leftBadge.textContent = hasLeft ? 'LEFT HAND — tracking ✓' : 'LEFT HAND — waiting';
-          leftBadge.classList.toggle('active', hasLeft);
-          rightBadge.textContent = hasRight ? 'RIGHT HAND — tracking ✓' : 'RIGHT HAND — waiting';
-          rightBadge.classList.toggle('active', hasRight);
-        }
-      }catch(e){
-        // detection error skip frame
-      }
+        detectedHandsEl.textContent=`${c} ${c===1?'hand':'hands'}`;
+        const hasLeft=hands.some(h=>h.handedness==='Left');
+        const hasRight=hands.some(h=>h.handedness==='Right');
+        leftBadge.textContent=hasLeft?'LEFT HAND — tracking ✓':'LEFT HAND — waiting';
+        leftBadge.classList.toggle('active', hasLeft);
+        rightBadge.textContent=hasRight?'RIGHT HAND — tracking ✓':'RIGHT HAND — waiting';
+        rightBadge.classList.toggle('active', hasRight);
+      }catch{}
     }
+    requestAnimationFrame(predictLoop);
+    return;
+  }
+  // Tasks Vision: 60fps smooth with OneEuro
+  if(now - lastPredictTime >= PREDICT_INTERVAL && video.currentTime !== lastVideoTime){
+    lastPredictTime=now;
+    lastVideoTime=video.currentTime;
+    try{
+      const results=handLandmarker.detectForVideo(video, now);
+      hands=[];
+      let hasFocusedHand=false;
+      if(results.landmarks && results.landmarks.length){
+        for(let i=0;i<results.landmarks.length;i++){
+          const lm=results.landmarks[i];
+          const handed=(results.handednesses && results.handednesses[i] && results.handednesses[i][0] && results.handednesses[i][0].categoryName) || (i===0?'Right':'Left');
+          const thumb=lm[4], index=lm[8], wrist=lm[0], middleTip=lm[12];
+          const handScale=Math.hypot(middleTip.x-wrist.x, middleTip.y-wrist.y) || 0.14;
+          const state=handStates[handed];
+          if(state) state.handScale=handScale;
+          const sm=smoothHandPos(handed, {x:thumb.x,y:thumb.y}, {x:index.x,y:index.y}, now);
+          const pinchDist=Math.hypot(sm.index.x-sm.thumb.x, sm.index.y-sm.thumb.y);
+          const ratio=handScale>0.02 ? pinchDist/handScale : 1;
+          const thresh=state && state.isPinching ? PINCH_OFF_RATIO : PINCH_ON_RATIO;
+          const isPinchRaw=ratio < thresh;
+          if(isPinchRaw){ state.pinchFrames=(state.pinchFrames||0)+1; state.releaseFrames=0; } else { state.releaseFrames=(state.releaseFrames||0)+1; state.pinchFrames=0; }
+          const isPinch= state.isPinching ? state.releaseFrames<2 : state.pinchFrames>=2;
+          const cx=(1-sm.index.x)*canvas.width;
+          const cy=sm.index.y*canvas.height;
+          const tx=(1-sm.thumb.x)*canvas.width;
+          const ty=sm.thumb.y*canvas.height;
+          state.thumb.x=tx; state.thumb.y=ty;
+          const ix=1-sm.index.x, iy=sm.index.y;
+          const inFocus=ix>0.06 && ix<0.94 && iy>0.06 && iy<0.94;
+          if(inFocus) hasFocusedHand=true;
+          hands.push({landmarks:lm, handedness:handed, inFocus, thumbTip:{x:tx,y:ty}, indexTip:{x:cx,y:cy}, handScale, ratio, isPinching:isPinch, smoothed:{thumb:sm.thumb, index:sm.index}});
+          handlePinch(handed, isPinch, cx, cy);
+        }
+      }
+      const focusEl=document.getElementById('handFocus');
+      if(focusEl) focusEl.classList.toggle('active', hasFocusedHand);
+      if(now - lastHandDomUpdate > 100){
+        lastHandDomUpdate=now;
+        const c=hands.length;
+        try{
+          detectedHandsEl.textContent=`${c} ${c===1?'hand':'hands'}`;
+          const hasLeft=hands.some(h=>h.handedness==='Left');
+          const hasRight=hands.some(h=>h.handedness==='Right');
+          leftBadge.textContent=hasLeft?'LEFT HAND — tracking ✓':'LEFT HAND — waiting';
+          leftBadge.classList.toggle('active', hasLeft);
+          rightBadge.textContent=hasRight?'RIGHT HAND — tracking ✓':'RIGHT HAND — waiting';
+          rightBadge.classList.toggle('active', hasRight);
+        }catch{}
+      }
+    }catch(e){}
   }
   requestAnimationFrame(predictLoop);
 }
@@ -1717,22 +1859,83 @@ function renderLoop(now){
     ctx.restore();
   }
 
-  // Hand landmarks — minimal lightweight (only index fingertip + pinch ring)
+  // Hand landmarks — PRO: thumb+index both tracked, smooth OneEuro, adaptive pinch glow
   if(hands.length){
     for(let hi=0; hi<hands.length; hi++){
       const h=hands[hi];
-      const lm=h.landmarks;
       ctx.save();
+      ctx.globalAlpha=0.95;
+      // Use smoothed tips if available, else fallback to landmarks
+      let cx, cy, tx, ty, isPinching, ratio;
+      if(h.indexTip && h.thumbTip){
+        cx=h.indexTip.x; cy=h.indexTip.y; tx=h.thumbTip.x; ty=h.thumbTip.y;
+        isPinching=!!h.isPinching; ratio=h.ratio||1;
+      } else {
+        const lm=h.landmarks;
+        const idx=lm[8], th=lm[4];
+        cx=(1-idx.x)*canvas.width; cy=idx.y*canvas.height;
+        tx=(1-th.x)*canvas.width; ty=th.y*canvas.height;
+        isPinching=Math.hypot(th.x-idx.x, th.y-idx.y) < 0.05;
+        ratio=1;
+      }
+      const midX=(cx+tx)/2, midY=(cy+ty)/2;
+      const dist=Math.hypot(cx-tx, cy-ty);
+      // Line between thumb & index — color encodes pinch progress
+      const pinchT=Math.max(0, Math.min(1, (0.42 - (h.ratio||ratio))/0.14)); // 0=open,1=pinched
+      const lineColor=isPinching ? '#ffd60a' : `rgba(255,255,255,${0.55+pinchT*0.3})`;
+      ctx.strokeStyle=lineColor;
+      ctx.lineWidth=isPinching?2.8:1.6;
+      ctx.globalAlpha=isPinching?0.95:0.55;
+      ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(cx,cy); ctx.stroke();
+      // Thumb tip - smaller, teal hint
+      ctx.globalAlpha=0.92;
+      ctx.fillStyle=isPinching ? '#ffd60a' : '#69f0ae';
+      ctx.strokeStyle=isPinching ? '#ffd60a' : 'rgba(255,255,255,0.85)';
+      ctx.lineWidth=1.6;
+      ctx.beginPath(); ctx.arc(tx,ty, isPinching?6:7, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(tx,ty, isPinching?3.2:3.8, 0, Math.PI*2); ctx.fill();
+      // Index tip - main cursor, larger, glows on pinch
+      if(isPinching){
+        ctx.shadowBlur=18; ctx.shadowColor='#ffd60a';
+        ctx.strokeStyle='#ffd60a'; ctx.lineWidth=2.6;
+        ctx.beginPath(); ctx.arc(cx,cy, 13, 0, Math.PI*2); ctx.stroke();
+        ctx.shadowBlur=0;
+      }
+      ctx.strokeStyle=isPinching ? '#ffd60a' : 'rgba(255,255,255,0.9)';
+      ctx.lineWidth=isPinching?2.4:1.8;
+      ctx.beginPath(); ctx.arc(cx,cy, isPinching?11:13, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle=isPinching ? '#ffd60a' : '#ffffff';
+      ctx.beginPath(); ctx.arc(cx,cy, isPinching?5.8:4.2, 0, Math.PI*2); ctx.fill();
+      // Pinch midpoint glow
+      if(isPinching){
+        ctx.globalAlpha=0.9;
+        ctx.fillStyle='#ffd60a';
+        ctx.shadowBlur=12; ctx.shadowColor='#ffd60a';
+        ctx.beginPath(); ctx.arc(midX, midY, 4, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur=0;
+        // pulse ring
+        ctx.globalAlpha=0.45; ctx.strokeStyle='#ffd60a'; ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.arc(midX, midY, 11+Math.sin(performance.now()*0.012)*2, 0, Math.PI*2); ctx.stroke();
+      } else if(dist < 80){
+        // faint midpoint dot when fingers near
+        ctx.globalAlpha=0.35; ctx.fillStyle='rgba(255,255,255,0.9)';
+        ctx.beginPath(); ctx.arc(midX, midY, 2, 0, Math.PI*2); ctx.fill();
+      }
+      // Hand label with color
       ctx.globalAlpha=0.9;
-      const idx=lm[8]; const th=lm[4];
-      const cx=(1 - idx.x)*canvas.width, cy=idx.y*canvas.height;
-      const isPinching = Math.hypot(th.x - idx.x, th.y - idx.y) < PINCH_THRESH;
-      // single fingertip glass ring
-      ctx.strokeStyle=isPinching? '#ffd60a' : 'rgba(255,255,255,0.75)';
-      ctx.lineWidth=isPinching?2.2:1.4;
-      ctx.beginPath(); ctx.arc(cx,cy, isPinching? 11:14,0,Math.PI*2); ctx.stroke();
-      ctx.fillStyle=isPinching?'#ffd60a':'#fff';
-      ctx.beginPath(); ctx.arc(cx,cy, isPinching?5.5:3.5,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle= h.handedness==='Left' ? '#00e676' : '#ffd60a';
+      ctx.font='700 9px Poppins, sans-serif'; ctx.textAlign='center';
+      const label = (h.handedness||'HAND').toUpperCase();
+      ctx.fillText(label, cx, cy-22);
+      // Optional: faint skeleton (wrist to index) for pro feel
+      if(h.landmarks){
+        const lm=h.landmarks;
+        const wrist=lm[0], idxMCP=lm[5], pip=lm[6];
+        const wx=(1-wrist.x)*canvas.width, wy=wrist.y*canvas.height;
+        const mx=(1-idxMCP.x)*canvas.width, my=idxMCP.y*canvas.height;
+        ctx.globalAlpha=0.18; ctx.strokeStyle='#ffffff'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.moveTo(wx,wy); ctx.lineTo(mx,my); ctx.lineTo(cx,cy); ctx.stroke();
+      }
       ctx.restore();
     }
   }
