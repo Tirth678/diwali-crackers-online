@@ -101,71 +101,93 @@ body::before{
 .glass-btn.small{padding:6px 10px; font-size:11px}
 .glass-btn.primary{background:linear-gradient(90deg,#ff9a00,#ff3b30); border-color:transparent; color:#fff}
 
-/* Bottom dock — glass minimal */
+/* Bottom dock — production glass */
 .bottom-dock.glass{
-  position:absolute; bottom:10px; left:10px; right:10px;
-  background:var(--glass-strong);
-  backdrop-filter:blur(16px) saturate(1.25);
-  -webkit-backdrop-filter:blur(16px) saturate(1.25);
-  border:1px solid var(--border);
-  border-radius:18px;
-  padding:10px;
+  position:absolute; bottom:12px; left:12px; right:12px;
+  background:rgba(14,10,24,0.62);
+  backdrop-filter:blur(18px) saturate(1.25);
+  -webkit-backdrop-filter:blur(18px) saturate(1.25);
+  border:1px solid rgba(255,255,255,0.14);
+  border-radius:20px;
+  padding:12px 12px 8px;
   z-index:9;
-  box-shadow:0 12px 32px rgba(0,0,0,0.45);
+  box-shadow:0 16px 40px rgba(0,0,0,0.50), 0 2px 10px rgba(0,0,0,0.25);
 }
 .dock-head{
   display:flex; gap:10px; align-items:center; justify-content:space-between;
-  margin-bottom:8px;
+  margin-bottom:6px;
   flex-wrap:wrap;
+  padding:0 2px;
 }
-.dock-title{font-size:11px; font-weight:800; color:var(--gold); letter-spacing:.5px}
-.dock-hint{font-size:10px; color:var(--muted)}
+.dock-title{font-size:11px; font-weight:800; color:var(--gold); letter-spacing:.6px; text-transform:uppercase}
+.dock-hint{font-size:10px; color:rgba(255,255,255,0.55); font-weight:500}
 .fps-mini{font-size:10px; color:var(--muted); background:rgba(0,0,0,0.25); padding:3px 7px; border-radius:999px; border:1px solid rgba(255,255,255,0.08)}
 .shelf-grid{
-  display:flex; gap:10px; overflow-x:auto; overflow-y:hidden;
-  scrollbar-width:thin; padding-bottom:4px;
+  display:flex; gap:12px; overflow-x:auto; overflow-y:visible;
+  scrollbar-width:thin; padding:6px 4px 10px;
   scroll-snap-type:x proximity;
   -webkit-overflow-scrolling:touch;
 }
 .shelf-grid::-webkit-scrollbar{height:5px}
 .shelf-grid::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.16); border-radius:999px}
+/* Production polished cracker cards — no image background */
 .cracker-card{
-  flex:0 0 102px;
+  flex:0 0 118px;
   scroll-snap-align:start;
-  background:rgba(255,255,255,0.06);
-  border:1px solid rgba(255,255,255,0.10);
-  border-radius:14px;
-  padding:8px;
+  background:rgba(255,255,255,0.07);
+  border:1px solid rgba(255,255,255,0.11);
+  border-radius:18px;
+  padding:10px 8px 10px;
   text-align:center;
   cursor:pointer;
-  backdrop-filter:blur(10px);
-  transition:.18s;
+  backdrop-filter:blur(14px) saturate(1.15);
+  -webkit-backdrop-filter:blur(14px) saturate(1.15);
+  transition:all .22s cubic-bezier(.2,.8,.2,1);
+  position:relative;
+  overflow:visible;
 }
-.cracker-card:hover{transform:translateY(-2px); border-color:rgba(255,214,10,0.45)}
+.cracker-card:hover{
+  transform:translateY(-4px);
+  background:rgba(255,255,255,0.10);
+  border-color:rgba(255,255,255,0.18);
+  box-shadow:0 10px 28px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2);
+}
 .cracker-card.selected{
-  background:linear-gradient(180deg, rgba(255,214,10,0.18), rgba(255,154,0,0.12));
-  border-color:var(--gold);
-  box-shadow:0 0 0 2px rgba(255,214,10,0.35);
+  background:linear-gradient(180deg, rgba(255,214,10,0.16), rgba(255,154,0,0.09));
+  border-color:rgba(255,214,10,0.70);
+  box-shadow:0 0 0 1.5px rgba(255,214,10,0.40), 0 8px 24px rgba(255,154,0,0.22);
+  transform:translateY(-2px);
 }
 .cracker-card.selected::after{
-  content:"✓"; position:absolute; top:6px; right:6px;
-  width:16px;height:16px; border-radius:50%;
+  content:"✓"; position:absolute; top:7px; right:7px;
+  width:18px;height:18px; border-radius:50%;
   background:var(--gold); color:#1a0d00;
   display:grid; place-items:center; font-size:10px; font-weight:800;
+  box-shadow:0 2px 8px rgba(0,0,0,0.3);
+  z-index:2;
 }
 .cracker-icon{
-  width:40px; height:40px; margin:0 auto 6px;
-  border-radius:10px;
+  width:68px; height:68px; margin:0 auto 8px;
   display:grid; place-items:center;
-  background:rgba(255,255,255,0.07);
-  border:1px solid rgba(255,255,255,0.08);
-  overflow:hidden;
+  background:transparent;
+  border:none;
+  overflow:visible;
+  position:relative;
 }
-.cracker-name{font-size:11px; font-weight:700; line-height:1.1}
-.cracker-desc{font-size:9px; color:var(--muted); margin-top:2px; min-height:20px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
-.cracker-meta{margin-top:6px; display:flex; justify-content:center; gap:4px}
-.chip{font-size:8px; padding:3px 5px; border-radius:999px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.08); color:#ffd}
-.chip.fire{background:linear-gradient(90deg,#ff9a00,#ff3b30); color:#fff; border:none; font-weight:700}
+.cracker-icon img{
+  width:100%; height:100%;
+  object-fit:contain;
+  object-position:center;
+  filter: drop-shadow(0 6px 14px rgba(0,0,0,0.45)) drop-shadow(0 2px 4px rgba(0,0,0,0.35));
+  transition:transform .22s, filter .22s;
+}
+.cracker-card:hover .cracker-icon img{ transform:scale(1.06); filter: drop-shadow(0 10px 18px rgba(0,0,0,0.5)) drop-shadow(0 3px 6px rgba(0,0,0,0.4)); }
+.cracker-card.selected .cracker-icon img{ transform:scale(1.04); }
+.cracker-name{font-size:12px; font-weight:800; line-height:1.15; letter-spacing:.1px; color:#fff}
+.cracker-desc{font-size:9.5px; color:rgba(255,255,255,0.68); margin-top:3px; min-height:22px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.25}
+.cracker-meta{margin-top:7px; display:flex; justify-content:center; gap:5px; align-items:center}
+.chip{font-size:8.5px; padding:3px 7px; border-radius:999px; background:rgba(255,255,255,0.09); border:1px solid rgba(255,255,255,0.10); color:rgba(255,255,255,0.85); font-weight:600; letter-spacing:.2px}
+.chip.fire{background:linear-gradient(90deg,#ff9a00,#ff3b30); color:#fff; border:none; font-weight:700; box-shadow:0 2px 8px rgba(255,59,48,0.25)}
 
 /* Camera prompt — glass pill */
 .camera-prompt{
@@ -197,6 +219,35 @@ body::before{
 .hidden{display:none !important}
 .hover-ring{position:absolute; inset:-2px; border-radius:14px; border:2px solid var(--gold); pointer-events:none; opacity:0; transition:.15s}
 .cracker-card.hover .hover-ring{opacity:1}
+
+/* Focused hand tracking zone — subtle production polish */
+.hand-focus{
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  pointer-events:none;
+  z-index:5;
+  opacity:0.9;
+}
+.focus-frame{
+  width:58%; height:52%;
+  max-width:520px; max-height:340px;
+  border:1px solid rgba(255,255,255,0.14);
+  border-radius:20px;
+  background:rgba(255,255,255,0.02);
+  backdrop-filter:blur(0.5px);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:4px;
+  box-shadow:0 0 0 1px rgba(255,255,255,0.06) inset;
+  transition:all .3s ease;
+}
+.focus-label{font-size:10px; font-weight:700; color:rgba(255,255,255,0.65); letter-spacing:.5px; text-transform:uppercase}
+.focus-sub{font-size:9px; color:rgba(255,255,255,0.45); font-weight:500}
+.hand-focus.active .focus-frame{
+  border-color:rgba(0,230,118,0.45);
+  background:rgba(0,230,118,0.04);
+  box-shadow:0 0 0 1px rgba(0,230,118,0.15) inset, 0 0 20px rgba(0,230,118,0.06);
+}
+.hand-focus.active .focus-label{color:rgba(0,230,118,0.9)}
 
 /* Responsive minimal */
 @media (max-width:860px){
