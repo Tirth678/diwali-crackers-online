@@ -3,14 +3,14 @@
 // Single-file clean implementation
 
 const CRACKER_TYPES = [
-  { id:'anar', name:'Anar', hindi:'अनार', desc:'Golden fountain spray', emoji:'🌋', color:'#ff9a00', accent:'#ffd60a', chip:'Fountain', sound:'fountain' },
-  { id:'rocket', name:'Rocket', hindi:'रॉकेट', desc:'Shoots up & bursts', emoji:'🚀', color:'#ff3b30', accent:'#ff6e40', chip:'Sky', sound:'rocket' },
-  { id:'chakri', name:'Chakri', hindi:'चकरी', desc:'Spinning ground wheel', emoji:'🌀', color:'#00e676', accent:'#69f0ae', chip:'Spinner', sound:'chakri' },
-  { id:'bomb', name:'Sutli Bomb', hindi:'सुतली बम', desc:'Thunderous boom', emoji:'💣', color:'#ff1744', accent:'#ff5252', chip:'Boom', sound:'bomb' },
-  { id:'fuljhadi', name:'Fuljhadi', hindi:'फुलझड़ी', desc:'Hand sparkler shower', emoji:'✨', color:'#ffd60a', accent:'#ffe57f', chip:'Sparkler', sound:'sparkler' },
-  { id:'laxmi', name:'Laxmi Bomb', hindi:'लक्ष्मी बम', desc:'Mega blast', emoji:'🧨', color:'#7b2cff', accent:'#b388ff', chip:'Mega', sound:'megabomb' },
-  { id:'pop', name:'Pop Pop', hindi:'पॉप पॉप', desc:'Cute crackle snaps', emoji:'🎉', color:'#29b6f6', accent:'#80d8ff', chip:'Pops', sound:'pop' },
-  { id:'skyshot', name:'Sky Shot', hindi:'आकाश शॉट', desc:'Multi-color sky burst', emoji:'🎆', color:'#ff4081', accent:'#ff80ab', chip:'Multi', sound:'skyshot' },
+  { id:'anar', name:'Anar', hindi:'अनार', desc:'Golden fountain spray', image:'/images/crackers/anar.webp', emoji:'🌋', color:'#ff9a00', accent:'#ffd60a', chip:'Fountain', sound:'fountain' },
+  { id:'rocket', name:'Rocket', hindi:'रॉकेट', desc:'Shoots up & bursts', image:'/images/crackers/rocket.webp', emoji:'🚀', color:'#ff3b30', accent:'#ff6e40', chip:'Sky', sound:'rocket' },
+  { id:'chakri', name:'Chakri', hindi:'चकरी', desc:'Spinning ground wheel', image:'/images/crackers/chakri.webp', emoji:'🌀', color:'#00e676', accent:'#69f0ae', chip:'Spinner', sound:'chakri' },
+  { id:'bomb', name:'Sutli Bomb', hindi:'सुतली बम', desc:'Thunderous boom', image:'/images/crackers/bomb.webp', emoji:'💣', color:'#ff1744', accent:'#ff5252', chip:'Boom', sound:'bomb' },
+  { id:'fuljhadi', name:'Fuljhadi', hindi:'फुलझड़ी', desc:'Hand sparkler shower', image:'/images/crackers/fuljhadi.webp', emoji:'✨', color:'#ffd60a', accent:'#ffe57f', chip:'Sparkler', sound:'sparkler' },
+  { id:'laxmi', name:'Laxmi Bomb', hindi:'लक्ष्मी बम', desc:'Mega blast', image:'/images/crackers/laxmi.webp', emoji:'🧨', color:'#7b2cff', accent:'#b388ff', chip:'Mega', sound:'megabomb' },
+  { id:'pop', name:'Pop Pop', hindi:'पॉप पॉप', desc:'Cute crackle snaps', image:'/images/crackers/pop.webp', emoji:'🎉', color:'#29b6f6', accent:'#80d8ff', chip:'Pops', sound:'pop' },
+  { id:'skyshot', name:'Sky Shot', hindi:'आकाश शॉट', desc:'Multi-color sky burst', image:'/images/crackers/skyshot.webp', emoji:'🎆', color:'#ff4081', accent:'#ff80ab', chip:'Multi', sound:'skyshot' },
 ];
 
 let activeCracker = 'anar';
@@ -20,6 +20,7 @@ let shockwaves = [];
 let stats = { placed:0, bursts:0, streak:0 };
 let flashAlpha = 0;
 let smokeParticles: any[] = [];
+let crackerImages: Record<string, HTMLImageElement> = {};
 let soundOn = true;
 let cameraOn = false;
 let nightMode = false;
@@ -74,26 +75,37 @@ function ensureAudio(){
   }
 }
 
+function preloadCrackerImages(){
+  CRACKER_TYPES.forEach(ct=>{
+    const img = new Image();
+    img.src = (ct as any).image;
+    img.onload = ()=>{ crackerImages[ct.id]=img; };
+    img.onerror = ()=>{ console.warn('Failed to load', ct.image) };
+    crackerImages[ct.id]=img;
+  });
+}
+
 function preloadRealSounds(){
+  // Real Diwali recordings from internet (hi-ashutosh/diwali-after-dark) + fallbacks
   const map: Record<string,string> = {
     anar:'anar.wav',
-    fountain:'anar.wav',
-    rocket:'rocket.wav',
+    fountain:'fountain.wav',
+    rocket:'rocket.mp3',
     chakri:'chakri.wav',
-    bomb:'bomb.wav',
-    sutli:'bomb.wav',
-    fuljhadi:'fuljhadi.wav',
-    sparkler:'fuljhadi.wav',
-    laxmi:'laxmi.wav',
-    megabomb:'laxmi.wav',
-    pop:'pop.wav',
-    skyshot:'skyshot.wav',
-    sky:'skyshot.wav',
-    firework:'skyshot.wav'
+    bomb:'bomb.mp3',
+    sutli:'sutli.mp3',
+    fuljhadi:'fuljhadi.mp3',
+    sparkler:'sparkler.mp3',
+    laxmi:'laxmi.mp3',
+    megabomb:'megabomb.mp3',
+    pop:'pop.mp3',
+    skyshot:'skyshot.mp3',
+    sky:'sky.wav',
+    firework:'skyshot.mp3'
   };
   Object.entries(map).forEach(([key,file])=>{
     const pool: HTMLAudioElement[] = [];
-    for(let i=0;i<4;i++){
+    for(let i=0;i<2;i++){
       const a = new Audio(`/sounds/${file}`);
       a.preload='auto';
       a.volume=masterVolume;
@@ -276,6 +288,8 @@ function playSynth(type:string){
 
 // Shelf
 function renderShelf(){
+  // Build once, fast
+  const frag=document.createDocumentFragment();
   shelfGrid.innerHTML='';
   CRACKER_TYPES.forEach(t=>{
     const div=document.createElement('div');
@@ -283,7 +297,7 @@ function renderShelf(){
     div.dataset.id=t.id;
     div.innerHTML=`
       <div class="hover-ring"></div>
-      <div class="cracker-icon" style="color:${t.color}">${t.emoji}</div>
+      <div class="cracker-icon" style="background:${t.color}18; border:1px solid ${t.color}30; overflow:hidden"><img loading="lazy" decoding="async" src="${(t as any).image}" alt="${t.name}" style="width:100%;height:100%;object-fit:contain; border-radius:8px" onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size:22px\\'>${t.emoji}</span>'" /></div>
       <div class="cracker-name">${t.name}</div>
       <div class="cracker-desc">${t.desc}</div>
       <div class="cracker-meta">
@@ -296,17 +310,33 @@ function renderShelf(){
       e.preventDefault();
       fireAt(canvas.width/2, canvas.height*0.45, t.id);
     });
-    shelfGrid.appendChild(div);
+    frag.appendChild(div);
   });
+  shelfGrid.appendChild(frag);
   updateActiveUI();
 }
-function selectCracker(id){
+function highlightShelfSelection(){
+  shelfGrid.querySelectorAll('.cracker-card').forEach(c=>{
+    c.classList.toggle('selected', c.dataset.id===activeCracker);
+  });
+}
+function selectCracker(id, _src){
+  if(activeCracker===id){ // quick feedback if same selected -> burst demo
+    // keep but not rebuilding
+  }
   activeCracker=id;
   const t = CRACKER_TYPES.find(c=>c.id===id);
-  renderShelf();
+  highlightShelfSelection();
   updateActiveUI();
-  showToast(`Selected ${t.emoji} ${t.name} • Double-tap stage to burst!`, t.color);
+  showToast(`Selected ${t.name} • Single=place Double=burst Triple=cycle!`, t.color);
   playSound('pop');
+}
+function cycleCracker(dir=1){
+  const idx=CRACKER_TYPES.findIndex(c=>c.id===activeCracker);
+  const next=(idx+dir+CRACKER_TYPES.length)%CRACKER_TYPES.length;
+  selectCracker(CRACKER_TYPES[next].id);
+  // quick pulse animation on dock
+  shelfGrid.animate([{transform:'translateX(0)'},{transform:`translateX(${dir*3}px)`},{transform:'translateX(0)'}],{duration:160});
 }
 function updateActiveUI(){
   const t = CRACKER_TYPES.find(c=>c.id===activeCracker);
@@ -325,7 +355,7 @@ function renderArsenal(){
     el.className='arsenal-item';
     el.style.opacity=c?1:0.45;
     el.innerHTML=`
-      <div class="icon" style="background:${t.color}20; border:1px solid ${t.color}40">${t.emoji}</div>
+      <div class="icon" style="background:${t.color}20; border:1px solid ${t.color}40; overflow:hidden; display:grid; place-items:center"><img src="${(t as any).image}" alt="${t.name}" style="width:22px;height:22px;object-fit:contain; border-radius:4px" onerror="this.style.display='none'; this.parentElement.textContent='${t.emoji}'" /></div>
       <div class="info"><b>${t.name}</b><span>${t.desc}</span></div>
       <div class="count" style="color:${t.color}">${c}</div>
     `;
@@ -341,12 +371,16 @@ function renderArsenal(){
 
 // Particles helpers
 function spawnParticles(x,y,type){
+  // cap total particles to avoid lag
+  if(particles.length > particleBudget) particles.splice(0, particles.length - particleBudget + 50);
   const t = CRACKER_TYPES.find(c=>c.id===type);
   const color = t ? t.color : '#ffd60a';
   const accent = t ? t.accent : '#ff9a00';
+  const scale = isLowPerf ? 0.62 : 1; // reduce particles on low perf
 
   if(type==='anar'){
-    for(let i=0;i<90;i++){
+    const n = Math.round(90*scale);
+    for(let i=0;i<n;i++){
       const angle = (Math.random()*0.9 -0.45) * Math.PI;
       const speed = 3 + Math.random()*7;
       const vx = Math.cos(angle + Math.PI/2) * speed * 0.7;
@@ -361,12 +395,14 @@ function spawnParticles(x,y,type){
     }
     shockwaves.push({x,y, r:0, maxR:90, life:0, maxLife:0.35, color});
     flashAlpha = 0.18;
-    for(let i=0;i<8;i++) particles.push({x, y: y-6, vx:(Math.random()-0.5)*0.9, vy:-0.5-Math.random()*0.7, life:1.6, maxLife:1.6, size:4+Math.random()*4, color:'rgba(100,100,100,0.28)', gravity:-0.02, drag:0.97, smoke:true});
+    const nSmokeA=Math.round(8*scale);
+    for(let i=0;i<nSmokeA;i++) particles.push({x, y: y-6, vx:(Math.random()-0.5)*0.9, vy:-0.5-Math.random()*0.7, life:1.6, maxLife:1.6, size:4+Math.random()*4, color:'rgba(100,100,100,0.28)', gravity:-0.02, drag:0.97, smoke:true});
   } else if(type==='rocket'){
     const launchY = y;
     const targetY = y - 220 - Math.random()*180;
     const targetX = x + (Math.random()-0.5)*60;
-    for(let i=0;i<20;i++){
+    const nTrail = Math.round(20*scale);
+    for(let i=0;i<nTrail;i++){
       // smoke trail
       if(i%2===0) particles.push({x: x + (Math.random()-0.5)*8, y: launchY - i*10, vx:(Math.random()-0.5)*0.5, vy:-0.6-Math.random()*0.3, life:0.9, maxLife:0.9, size:4+Math.random()*5, color:'rgba(120,120,120,0.32)', gravity:-0.015, drag:0.97, smoke:true});
       particles.push({
@@ -377,7 +413,8 @@ function spawnParticles(x,y,type){
       });
     }
     setTimeout(()=>{
-      for(let i=0;i<110;i++){
+      const nBurst = Math.round(110*scale);
+      for(let i=0;i<nBurst;i++){
         const a = Math.random()*Math.PI*2;
         const s = 3+Math.random()*8;
         particles.push({
@@ -389,8 +426,10 @@ function spawnParticles(x,y,type){
       }
       shockwaves.push({x:targetX, y:targetY, r:0, maxR:140, life:0, maxLife:0.45, color:'#ffd60a'});
       flashAlpha = 0.45;
-      for(let i=0;i<10;i++) particles.push({x:targetX, y:targetY, vx:(Math.random()-0.5)*0.6, vy:-0.4-Math.random()*0.5, life:1.4, maxLife:1.4, size:5+Math.random()*6, color:'rgba(90,90,90,0.38)', gravity:-0.018, drag:0.98, smoke:true});
-      for(let i=0;i<18;i++){
+      const nSmokeR=Math.round(10*scale);
+      for(let i=0;i<nSmokeR;i++) particles.push({x:targetX, y:targetY, vx:(Math.random()-0.5)*0.6, vy:-0.4-Math.random()*0.5, life:1.4, maxLife:1.4, size:5+Math.random()*6, color:'rgba(90,90,90,0.38)', gravity:-0.018, drag:0.98, smoke:true});
+      const nSmokeB=Math.round(18*scale);
+    for(let i=0;i<nSmokeB;i++){
         const a = Math.random()*Math.PI*2;
         particles.push({x:targetX,y:targetY,vx:Math.cos(a)*1.5, vy:Math.sin(a)*1.5, life:0.9, maxLife:0.9, size:1.5, color:'#ffffff', gravity:0.04, drag:0.99});
       }
@@ -400,7 +439,8 @@ function spawnParticles(x,y,type){
     const cx=x, cy=y;
     shockwaves.push({x:cx,y:cy,r:0,maxR:70,life:0,maxLife:0.6,color:'#00e676'});
     flashAlpha = 0.12;
-    for(let i=0;i<70;i++){
+    const nChak = Math.round(70*scale);
+    for(let i=0;i<nChak;i++){
       const a = (i/70)*Math.PI*2;
       const r = 8 + Math.random()*22;
       particles.push({
@@ -410,13 +450,15 @@ function spawnParticles(x,y,type){
         gravity:0.08, drag:0.97
       });
     }
-    for(let i=0;i<40;i++){
+    const nChak2=Math.round(40*scale);
+    for(let i=0;i<nChak2;i++){
       const a=Math.random()*Math.PI*2;
       particles.push({x:cx,y:cy,vx:Math.cos(a)*5, vy:Math.sin(a)*5-1, life:0.6, maxLife:0.6, size:1.8, color:'#ffffff', gravity:0.12, drag:0.98});
     }
   } else if(type==='bomb' || type==='laxmi'){
     const isMega = type==='laxmi';
-    const count = isMega? 160 : 110;
+    const base = isMega? 160 : 110;
+    const count = Math.round(base*scale);
     const maxR = isMega? 180 : 120;
     shockwaves.push({x,y,r:0,maxR, life:0, maxLife:0.4, color:isMega?'#7b2cff':color});
     shockwaves.push({x,y,r:0,maxR:maxR*0.6, life:0.06, maxLife:0.35, color:'#ffffff'});
@@ -432,13 +474,15 @@ function spawnParticles(x,y,type){
     }
     particles.push({x,y,vx:0,vy:0,life:0.18,maxLife:0.18,size:maxR, color:'#ffffff', flash:true});
     flashAlpha = isMega ? 0.72 : 0.55;
-    for(let i=0;i<18;i++){
+    const nSmokeB=Math.round(18*scale);
+    for(let i=0;i<nSmokeB;i++){
       const a=Math.random()*Math.PI*2;
       const s= 0.8+Math.random()*1.8;
       particles.push({x,y,vx:Math.cos(a)*s*0.35, vy:Math.sin(a)*s*0.35 - Math.random()*0.5, life:1.1+Math.random()*0.7, maxLife:1.9, size:6+Math.random()*8, color:'rgba(140,120,100,0.42)', gravity:-0.025, drag:0.985, smoke:true});
     }
   } else if(type==='fuljhadi'){
-    for(let i=0;i<55;i++){
+    const nFul = Math.round(55*scale);
+    for(let i=0;i<nFul;i++){
       const a=Math.random()*Math.PI*2;
       const s=Math.random()*4 + 1;
       particles.push({
@@ -449,10 +493,10 @@ function spawnParticles(x,y,type){
     }
   } else if(type==='skyshot'){
     const bursts = [
-      {color:'#ff3b30', count:70},
-      {color:'#ffd60a', count:60},
-      {color:'#7b2cff', count:60},
-      {color:'#00e676', count:60},
+      {color:'#ff3b30', count:Math.round(70*scale)},
+      {color:'#ffd60a', count:Math.round(60*scale)},
+      {color:'#7b2cff', count:Math.round(60*scale)},
+      {color:'#00e676', count:Math.round(60*scale)},
     ];
     bursts.forEach((b, idx)=>{
       setTimeout(()=>{
@@ -468,7 +512,8 @@ function spawnParticles(x,y,type){
       }, idx*160);
     });
   } else if(type==='pop'){
-    for(let i=0;i<35;i++){
+    const nPop = Math.round(35*scale);
+    for(let i=0;i<nPop;i++){
       const a=Math.random()*Math.PI*2;
       const s=1.5+Math.random()*4;
       particles.push({x,y,vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:0.5, maxLife:0.5, size:2+Math.random()*2, color: Math.random()>0.5? '#29b6f6':'#ffd60a', gravity:0.12, drag:0.96});
@@ -487,7 +532,7 @@ function fireAt(x,y,type){
   renderArsenal();
   const t = CRACKER_TYPES.find(c=>c.id===type);
   playSound(t ? t.sound : 'firework', x, y);
-  showToast(`${t.emoji} ${t.name} burst!`, t.color);
+  showToast(`${t.name} burst!`, t.color);
   let idx=-1; let bestDist=9999;
   placedCrackers.forEach((p,i)=>{
     const d=Math.hypot(p.x - x, p.y - y);
@@ -501,7 +546,7 @@ function placeCracker(x,y,type){
   placedCrackers.push({id:Date.now()+Math.random(), x,y, type, scale:1, placedAt:performance.now()});
   stats.placed++;
   renderArsenal();
-  showToast(`Placed ${CRACKER_TYPES.find(c=>c.id===type).emoji} — double-tap to fire!`, '#ffd60a');
+  showToast(`Placed ${CRACKER_TYPES.find(c=>c.id===type).name} — double-tap to fire!`, '#ffd60a');
   playSound('pop');
   for(let i=0;i<12;i++){
     const a=Math.random()*Math.PI*2;
@@ -594,21 +639,40 @@ function stopCamera(){
   cameraOn=false;
   camDot.classList.add('off');
   camLabel.textContent='Camera OFF';
-  document.getElementById('btnCamera').classList.remove('active');
+  const _btnCam = document.getElementById('btnCamera') as any;
+  if(_btnCam) _btnCam.classList.remove('active');
   showToast('Camera off — mouse/touch active', '#c2b8d6');
 }
-function toggleCamera(){ if(cameraOn) stopCamera(); else startCamera(); }
+function toggleCamera(){
+  // No off option — camera always stays ON
+  if(!cameraOn) startCamera();
+  else showToast('Camera is always ON — enjoy the celebration! 🪔', '#00e676');
+}
 
 // Hand tracking
 let handLandmarker = null;
 let lastVideoTime = -1;
 let hands = [];
 let handStates = {
-  Left: { isPinching:false, pinchStart:0, lastTap:0, pendingSingle:null, cursor:{x:0,y:0} },
-  Right:{ isPinching:false, pinchStart:0, lastTap:0, pendingSingle:null, cursor:{x:0,y:0} },
-  Mouse:{ isPinching:false, pinchStart:0, lastTap:0, pendingSingle:null, cursor:{x: canvas.width/2, y: canvas.height/2 } }
+  Left: { isPinching:false, pinchStart:0, cursor:{x:0,y:0}, tapCount:0, tapTimer:null, lastTapTime:0, lastTapX:0, lastTapY:0 },
+  Right:{ isPinching:false, pinchStart:0, cursor:{x:0,y:0}, tapCount:0, tapTimer:null, lastTapTime:0, lastTapX:0, lastTapY:0 },
+  Mouse:{ isPinching:false, pinchStart:0, cursor:{x: canvas.width/2, y: canvas.height/2 }, tapCount:0, tapTimer:null, lastTapTime:0, lastTapX:0, lastTapY:0 }
 };
 const PINCH_THRESH = 0.05;
+// --- Improved tap system ---
+const TAP_TIMEOUT = 320; // ms wait to decide single/double/triple
+const HOLD_MAX_MS = 360; // max press duration to count as tap
+const TAP_MOVE_TOL = 28; // px tolerance between taps
+const THREE_FINGER_HOLD_MAX = 400;
+let threeFingerState = { active:false, startTime:0, startX:0, startY:0, moved:false };
+let lastFpsUpdate = 0;
+let isLowPerf = false;
+try{ isLowPerf = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || window.innerWidth < 860; }catch{}
+let particleBudget = isLowPerf ? 380 : 650;
+let lastPredictTime = 0;
+const PREDICT_INTERVAL = isLowPerf ? 66 : 45; // throttle hand detection
+let handCache = { count:0, text:'0 hands' };
+let lastHandDomUpdate = 0;
 
 async function initHandTracking(){
   if(handLandmarker) return;
@@ -643,43 +707,57 @@ async function initHandTracking(){
   }
 }
 
+function queueTap(handLabel, x, y){
+  const s=handStates[handLabel];
+  if(!s) return;
+  const now=performance.now();
+  // distance from last tap resets chain
+  const dist = Math.hypot((s.lastTapX||x)-x, (s.lastTapY||y)-y);
+  if(dist > 70 && s.tapCount>0){ // far away -> flush previous chain first
+    if(s.tapTimer){ clearTimeout(s.tapTimer); dispatchTap(handLabel, s.tapCount, s.lastTapX, s.lastTapY); s.tapCount=0; s.tapTimer=null; }
+  }
+  s.tapCount = (s.tapCount||0)+1;
+  s.lastTapTime=now; s.lastTapX=x; s.lastTapY=y;
+  if(s.tapTimer) clearTimeout(s.tapTimer);
+  s.tapTimer=setTimeout(()=>{ dispatchTap(handLabel, s.tapCount, s.lastTapX, s.lastTapY); s.tapCount=0; s.tapTimer=null; }, TAP_TIMEOUT);
+}
+function dispatchTap(handLabel, count, x, y){
+  if(count===1) onSingleTap(handLabel, x, y);
+  else if(count===2) onDoubleTap(handLabel, x, y);
+  else if(count>=3) onTripleTap(handLabel, x, y);
+}
 function handlePinch(handLabel, isPinchingNow, cursorX, cursorY){
   const state = handStates[handLabel];
+  if(!state) return;
   state.cursor.x=cursorX; state.cursor.y=cursorY;
   if(isPinchingNow !== state.isPinching){
     if(isPinchingNow){
       state.isPinching=true;
       state.pinchStart=performance.now();
+      // store start pos for move tolerance
+      state.pinchStartX=cursorX; state.pinchStartY=cursorY;
     } else {
       state.isPinching=false;
       const dur = performance.now() - state.pinchStart;
-      if(dur < 400){
-        const now=performance.now();
-        const sinceLastTap = now - state.lastTap;
-        if(sinceLastTap < 550 && sinceLastTap>80){
-          if(state.pendingSingle){ clearTimeout(state.pendingSingle); state.pendingSingle=null; }
-          onDoubleTap(handLabel, cursorX, cursorY);
-          state.lastTap=0;
-        } else {
-          state.lastTap=now;
-          state.pendingSingle = setTimeout(()=>{
-            onSingleTap(handLabel, cursorX, cursorY);
-            state.pendingSingle=null;
-            state.lastTap=0;
-          }, 560);
-        }
+      const moved = Math.hypot(cursorX-(state.pinchStartX||cursorX), cursorY-(state.pinchStartY||cursorY));
+      if(dur < HOLD_MAX_MS && moved < 32){
+        queueTap(handLabel, cursorX, cursorY);
+      } else if(dur < 1200 && moved < 18){
+        // long press but tiny move -> still treat as single (prevents misfire)
+        queueTap(handLabel, cursorX, cursorY);
       }
     }
   } else {
     if(state.isPinching && activeCracker==='fuljhadi'){
-      if(Math.random()<0.55){
-        spawnParticles(cursorX, cursorY, 'fuljhadi');
-      }
+      // throttle: ~30fps
+      if(Math.random()<0.42) spawnParticles(cursorX, cursorY, 'fuljhadi');
     }
   }
 }
 
 function onSingleTap(handLabel, x, y){
+  // ignore if was 3-finger recently
+  if(performance.now() - threeFingerState.startTime < 600 && threeFingerState.active) return;
   const global = canvasToGlobal(x,y);
   const shelfHit = hitTestShelf(global.x, global.y);
   if(shelfHit){
@@ -693,6 +771,7 @@ function onSingleTap(handLabel, x, y){
   }
 }
 function onDoubleTap(handLabel, x, y){
+  if(performance.now() - threeFingerState.startTime < 600 && threeFingerState.active) return;
   const global = canvasToGlobal(x,y);
   const shelfHit = hitTestShelf(global.x, global.y);
   if(shelfHit){
@@ -700,6 +779,32 @@ function onDoubleTap(handLabel, x, y){
     return;
   }
   fireAt(x,y, activeCracker);
+}
+function onTripleTap(handLabel, x, y){
+  const global = canvasToGlobal(x,y);
+  const shelfHit = hitTestShelf(global.x, global.y);
+  if(shelfHit){
+    // on shelf triple = cycle preview
+    cycleCracker(1);
+    fireAt(canvas.width/2, canvas.height*0.42, shelfHit);
+    return;
+  }
+  // Stage triple: cycle cracker + mega burst
+  const prev = activeCracker;
+  cycleCracker(1);
+  // burst with previous cracker at tap point plus new cracker nearby for wow
+  fireAt(x, y, prev);
+  setTimeout(()=> fireAt(x + 40*(Math.random()-0.5), y-18, activeCracker), 120);
+  showToast(`3-Tap • Switched to ${CRACKER_TYPES.find(c=>c.id===activeCracker).name} • Mega burst!`, '#ffd60a');
+  try{ (navigator as any).vibrate && (navigator as any).vibrate([40,30,60]); }catch{}
+}
+function onThreeFingerTap(x, y){
+  // 3-finger = cycle cracker (anywhere)
+  cycleCracker(1);
+  showToast(`🖖 3-Finger • ${CRACKER_TYPES.find(c=>c.id===activeCracker).name} selected`, CRACKER_TYPES.find(c=>c.id===activeCracker).color);
+  try{ (navigator as any).vibrate && (navigator as any).vibrate(50); }catch{}
+  // small celebration particles at center
+  for(let i=0;i<6;i++) particles.push({x: canvas.width/2 + (Math.random()-0.5)*80, y: canvas.height*0.45, vx:(Math.random()-0.5)*2, vy:-2-Math.random()*3, life:0.5, maxLife:0.5, size:2, color: CRACKER_TYPES.find(c=>c.id===activeCracker).color, gravity:0.12, drag:0.97});
 }
 function hitTestShelf(gx, gy){
   const cards = shelfGrid.querySelectorAll('.cracker-card');
@@ -718,47 +823,134 @@ function canvasToGlobal(cx, cy){
   return {x:gx, y:gy};
 }
 
-// mouse fallback
+// mouse + touch — optimized with 3-finger switch + debounced hover
+let hoverRaf = null;
+let lastHoverX=0, lastHoverY=0;
 canvas.addEventListener('mousemove', (e)=>{
   const rect=canvas.getBoundingClientRect();
   const x = ((e.clientX - rect.left)/rect.width)*canvas.width;
   const y = ((e.clientY - rect.top)/rect.height)*canvas.height;
-  // Because we mirror video manually via ctx scale, mouse coords should also be mirrored to match hand coords?
-  // Hand coords use (1 - x) mapping to appear mirrored. For mouse we keep direct coords but we will mirror via global transform?
-  // To keep consistent, mouse should also be mirrored: cursor at mirrored position.
-  // But easier: keep mouse direct (no mirror) — it's intuitive for user.
   handStates.Mouse.cursor={x,y};
-  updateHoverStates(e.clientX, e.clientY);
+  lastHoverX=e.clientX; lastHoverY=e.clientY;
+  if(!hoverRaf){
+    hoverRaf=requestAnimationFrame(()=>{ updateHoverStates(lastHoverX, lastHoverY); hoverRaf=null; });
+  }
 });
 canvas.addEventListener('mousedown', (e)=>{
   const rect=canvas.getBoundingClientRect();
   const x = ((e.clientX - rect.left)/rect.width)*canvas.width;
   const y = ((e.clientY - rect.top)/rect.height)*canvas.height;
+  // middle-click or right-click = cycle cracker
+  if(e.button===1 || e.button===2){
+    e.preventDefault();
+    cycleCracker(e.button===1 ? 1 : -1);
+    return;
+  }
+  // 3-button mouse combo not needed
   handlePinch('Mouse', true, x,y);
   ensureAudio();
+  // prevent dblclick double-fire confusion — we handle via queueTap only
 });
+canvas.addEventListener('contextmenu', e=> { e.preventDefault(); /* allow right-click to cycle instead */ });
 window.addEventListener('mouseup', (e)=>{
   const rect=canvas.getBoundingClientRect();
   const x = ((e.clientX - rect.left)/rect.width)*canvas.width;
   const y = ((e.clientY - rect.top)/rect.height)*canvas.height;
   if(handStates.Mouse.isPinching) handlePinch('Mouse', false, x,y);
 });
+// Wheel to cycle crackers (desktop convenience)
+canvas.addEventListener('wheel', (e)=>{
+  if(Math.abs(e.deltaY) < 10) return;
+  e.preventDefault();
+  // debounce wheel cycle
+  const now=performance.now();
+  if(!canvas._wheelLast || now - canvas._wheelLast > 220){
+    cycleCracker(e.deltaY > 0 ? 1 : -1);
+    canvas._wheelLast=now;
+  }
+}, {passive:false});
+
+// Touch — single + 3-finger handling
+let touchStartTime=0, touchStartDist=0;
 canvas.addEventListener('touchstart',(e)=>{
+  const rect=canvas.getBoundingClientRect();
+  if(e.touches.length===3){
+    e.preventDefault();
+    const cx = (e.touches[0].clientX + e.touches[1].clientX + e.touches[2].clientX)/3;
+    const cy = (e.touches[0].clientY + e.touches[1].clientY + e.touches[2].clientY)/3;
+    const x = ((cx - rect.left)/rect.width)*canvas.width;
+    const y = ((cy - rect.top)/rect.height)*canvas.height;
+    threeFingerState.active=true;
+    threeFingerState.startTime=performance.now();
+    threeFingerState.startX=x; threeFingerState.startY=y; threeFingerState.moved=false;
+    // haptic
+    try{ (navigator as any).vibrate && (navigator as any).vibrate(30);}catch{}
+    return;
+  }
+  if(e.touches.length!==1) return;
   e.preventDefault();
   const t=e.touches[0];
-  const rect=canvas.getBoundingClientRect();
   const x = ((t.clientX - rect.left)/rect.width)*canvas.width;
   const y = ((t.clientY - rect.top)/rect.height)*canvas.height;
+  touchStartTime=performance.now();
+  handStates.Mouse.pinchStartX=x; handStates.Mouse.pinchStartY=y;
   handlePinch('Mouse', true, x,y);
 },{passive:false});
+canvas.addEventListener('touchmove',(e)=>{
+  if(e.touches.length===3 && threeFingerState.active){
+    const rect=canvas.getBoundingClientRect();
+    const cx = (e.touches[0].clientX + e.touches[1].clientX + e.touches[2].clientX)/3;
+    const cy = (e.touches[0].clientY + e.touches[1].clientY + e.touches[2].clientY)/3;
+    const x = ((cx - rect.left)/rect.width)*canvas.width;
+    const y = ((cy - rect.top)/rect.height)*canvas.height;
+    if(Math.hypot(x-threeFingerState.startX, y-threeFingerState.startY) > 26) threeFingerState.moved=true;
+    handStates.Mouse.cursor={x,y};
+    e.preventDefault();
+    return;
+  }
+  if(e.touches.length===1){
+    const rect=canvas.getBoundingClientRect();
+    const t=e.touches[0];
+    const x = ((t.clientX - rect.left)/rect.width)*canvas.width;
+    const y = ((t.clientY - rect.top)/rect.height)*canvas.height;
+    handStates.Mouse.cursor={x,y};
+    lastHoverX=t.clientX; lastHoverY=t.clientY;
+    if(!hoverRaf){ hoverRaf=requestAnimationFrame(()=>{ updateHoverStates(lastHoverX, lastHoverY); hoverRaf=null; }); }
+  }
+},{passive:false});
 canvas.addEventListener('touchend',(e)=>{
-  const t=e.changedTouches[0];
   const rect=canvas.getBoundingClientRect();
+  if(threeFingerState.active){
+    // check if 3-finger tap completed (all lifted)
+    if(e.touches.length===0){
+      const dur=performance.now()-threeFingerState.startTime;
+      if(dur < THREE_FINGER_HOLD_MAX && !threeFingerState.moved){
+        onThreeFingerTap(threeFingerState.startX, threeFingerState.startY);
+      }
+      threeFingerState.active=false;
+      e.preventDefault();
+      return;
+    }
+    // still fingers down, wait
+    return;
+  }
+  if(e.changedTouches.length===0) return;
+  const t=e.changedTouches[0];
   const x = ((t.clientX - rect.left)/rect.width)*canvas.width;
   const y = ((t.clientY - rect.top)/rect.height)*canvas.height;
+  // prevent ghost click if was 3-finger recently
+  if(performance.now() - threeFingerState.startTime < 650) return;
   handlePinch('Mouse', false, x,y);
 },{passive:false});
-stageWrap.addEventListener('mousemove', (e)=> updateHoverStates(e.clientX, e.clientY));
+canvas.addEventListener('touchcancel',(e)=>{
+  threeFingerState.active=false;
+  handStates.Mouse.isPinching=false;
+},{passive:false});
+stageWrap.addEventListener('mousemove', (e)=> {
+  lastHoverX=e.clientX; lastHoverY=e.clientY;
+  if(!hoverRaf){ hoverRaf=requestAnimationFrame(()=>{ updateHoverStates(lastHoverX, lastHoverY); hoverRaf=null; }); }
+});
+
 function updateHoverStates(gx,gy){
   const hit = hitTestShelf(gx,gy);
   shelfGrid.querySelectorAll('.cracker-card').forEach(c=>{
@@ -767,36 +959,43 @@ function updateHoverStates(gx,gy){
 }
 
 function predictLoop(){
-  if(video.readyState >= 2 && handLandmarker){
-    const now = performance.now();
+  const now = performance.now();
+  // throttle hand detection for perf
+  if(now - lastPredictTime >= PREDICT_INTERVAL && video.readyState >= 2 && handLandmarker){
     if(video.currentTime !== lastVideoTime){
+      lastPredictTime = now;
       lastVideoTime = video.currentTime;
-      const results = handLandmarker.detectForVideo(video, now);
-      hands = [];
-      if(results.landmarks){
-        for(let i=0;i<results.landmarks.length;i++){
-          const lm = results.landmarks[i];
-          const handed = results.handednesses[i][0].categoryName;
-          hands.push({landmarks:lm, handedness:handed});
-          const thumb = lm[4];
-          const index = lm[8];
-          const d = Math.hypot(thumb.x - index.x, thumb.y - index.y);
-          const isPinch = d < PINCH_THRESH;
-          // Map to canvas with mirroring: (1 - x) because video is drawn mirrored
-          const cx = (1 - index.x) * canvas.width;
-          const cy = index.y * canvas.height;
-          handlePinch(handed, isPinch, cx, cy);
+      try{
+        const results = handLandmarker.detectForVideo(video, now);
+        hands = [];
+        if(results.landmarks && results.landmarks.length){
+          for(let i=0;i<results.landmarks.length;i++){
+            const lm = results.landmarks[i];
+            const handed = (results.handednesses && results.handednesses[i] && results.handednesses[i][0] && results.handednesses[i][0].categoryName) || (i===0?'Right':'Left');
+            hands.push({landmarks:lm, handedness:handed});
+            const thumb = lm[4];
+            const index = lm[8];
+            const d = Math.hypot(thumb.x - index.x, thumb.y - index.y);
+            const isPinch = d < PINCH_THRESH;
+            const cx = (1 - index.x) * canvas.width;
+            const cy = index.y * canvas.height;
+            handlePinch(handed, isPinch, cx, cy);
+          }
         }
-        detectedHandsEl.textContent = `${hands.length} ${hands.length===1?'hand':'hands'}`;
-        leftBadge.textContent = hands.some(h=>h.handedness==='Left') ? 'LEFT HAND — tracking ✓' : 'LEFT HAND — waiting';
-        leftBadge.classList.toggle('active', hands.some(h=>h.handedness==='Left'));
-        rightBadge.textContent = hands.some(h=>h.handedness==='Right') ? 'RIGHT HAND — tracking ✓' : 'RIGHT HAND — waiting';
-        rightBadge.classList.toggle('active', hands.some(h=>h.handedness==='Right'));
-        if(hands.length===0){
-          leftBadge.classList.remove('active'); rightBadge.classList.remove('active');
+        // throttle DOM updates to ~10fps
+        if(now - lastHandDomUpdate > 100){
+          lastHandDomUpdate = now;
+          const c = hands.length;
+          detectedHandsEl.textContent = `${c} ${c===1?'hand':'hands'}`;
+          const hasLeft = hands.some(h=>h.handedness==='Left');
+          const hasRight = hands.some(h=>h.handedness==='Right');
+          leftBadge.textContent = hasLeft ? 'LEFT HAND — tracking ✓' : 'LEFT HAND — waiting';
+          leftBadge.classList.toggle('active', hasLeft);
+          rightBadge.textContent = hasRight ? 'RIGHT HAND — tracking ✓' : 'RIGHT HAND — waiting';
+          rightBadge.classList.toggle('active', hasRight);
         }
-      } else {
-        detectedHandsEl.textContent='0 hands';
+      }catch(e){
+        // detection error skip frame
       }
     }
   }
@@ -817,12 +1016,26 @@ function drawRoundRect(ctx,x,y,w,h,r){
   ctx.closePath();
 }
 
+let cachedBgGradient = null;
+let lastNightModeCache = null;
+function getBgGradient(){
+  if(!cachedBgGradient || lastNightModeCache!==nightMode){
+    const g = ctx.createLinearGradient(0,0,0,canvas.height);
+    g.addColorStop(0, nightMode?'#0a0618':'#1a1040');
+    g.addColorStop(1, nightMode?'#0a0618':'#2a184a');
+    cachedBgGradient=g;
+    lastNightModeCache=nightMode;
+  }
+  return cachedBgGradient;
+}
+let frameCounter=0;
 function renderLoop(now){
+  frameCounter++;
   const dt = Math.min(0.05, (now - lastTime)/1000);
   lastTime=now;
-  fps = fps*0.9 + (1/dt)*0.1;
+  fps = fps*0.92 + (1/Math.max(dt,0.001))*0.08;
 
-  // Draw video mirrored
+  // Draw video mirrored — use fast path
   if(cameraOn && video.readyState>=2){
     ctx.save();
     ctx.translate(canvas.width, 0);
@@ -834,56 +1047,54 @@ function renderLoop(now){
       ctx.fillRect(0,0,canvas.width,canvas.height);
     }
   } else {
-    const g = ctx.createLinearGradient(0,0,0,canvas.height);
-    g.addColorStop(0, nightMode?'#0a0618':'#1a1040');
-    g.addColorStop(1, nightMode?'#0a0618':'#2a184a');
-    ctx.fillStyle=g;
+    ctx.fillStyle=getBgGradient();
     ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.save();
-    ctx.globalAlpha=0.15;
-    ctx.strokeStyle='#ffd60a';
-    ctx.lineWidth=2;
-    for(let r=40; r<300; r+=40){
-      ctx.beginPath();
-      ctx.arc(canvas.width/2, canvas.height/2, r, 0, Math.PI*2);
-      ctx.stroke();
+    // only draw decoration every 2 frames to save perf
+    if((frameCounter & 1)===0){
+      ctx.save();
+      ctx.globalAlpha=0.14;
+      ctx.strokeStyle='#ffd60a';
+      ctx.lineWidth=2;
+      for(let r=60; r<280; r+=60){
+        ctx.beginPath();
+        ctx.arc(canvas.width/2, canvas.height/2, r, 0, Math.PI*2);
+        ctx.stroke();
+      }
+      ctx.globalAlpha=1;
+      for(let i=0;i<5;i++){
+        const x = 140 + i*190 + Math.sin(now*0.001 + i)*8;
+        const y = canvas.height - 70;
+        ctx.fillStyle='#ff9a00';
+        ctx.beginPath();
+        ctx.ellipse(x,y,24,10,0,0,Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle='#ffd60a';
+        ctx.beginPath();
+        ctx.ellipse(x, y-7, 5, 11, 0, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
     }
-    ctx.globalAlpha=1;
-    for(let i=0;i<6;i++){
-      const x = 120 + i*180 + Math.sin(now*0.001 + i)*10;
-      const y = canvas.height - 70;
-      ctx.fillStyle='#ff9a00';
-      ctx.beginPath();
-      ctx.ellipse(x,y,28,12,0,0,Math.PI*2);
-      ctx.fill();
-      ctx.fillStyle='#ffd60a';
-      ctx.beginPath();
-      ctx.ellipse(x, y-8, 6, 14, 0, 0, Math.PI*2);
-      ctx.fill();
-      ctx.fillStyle='#fff7a0';
-      ctx.beginPath();
-      ctx.arc(x, y-16, 4+Math.sin(now*0.005+i)*1, 0, Math.PI*2);
-      ctx.fill();
-    }
-    ctx.restore();
     ctx.fillStyle='#ffd60a';
-    ctx.font='700 24px Poppins, sans-serif';
+    ctx.font='700 22px Poppins, sans-serif';
     ctx.textAlign='center';
     ctx.fillText('📸 Camera Off — Mouse/Touch Active', canvas.width/2, 60);
     ctx.fillStyle='#c2b8d6';
-    ctx.font='13px Poppins, sans-serif';
-    ctx.fillText('Enable camera for hand-gesture magic • Or just click & double-click!', canvas.width/2, 84);
+    ctx.font='12px Poppins, sans-serif';
+    ctx.fillText('Tap to enable camera • Click/DblClick • 3-Finger to switch • Wheel to cycle', canvas.width/2, 84);
   }
 
-  // Realistic flash illumination from bursts
   if(flashAlpha>0){
+    // cheap flash — single rect, no blending
     ctx.fillStyle = `rgba(255, 244, 180, ${flashAlpha})`;
     ctx.fillRect(0,0,canvas.width,canvas.height);
-    flashAlpha = Math.max(0, flashAlpha - dt*3.8);
+    flashAlpha = Math.max(0, flashAlpha - dt*4.2);
   }
-  // Placed crackers
-  placedCrackers.forEach(p=>{
-    const bob = Math.sin(now*0.004 + p.id)*4;
+  // Placed crackers — cull if offscreen (fast)
+  for(let pi=0; pi<placedCrackers.length; pi++){
+    const p=placedCrackers[pi];
+    if(p.x < -40 || p.x > canvas.width+40 || p.y < -40 || p.y > canvas.height+40) continue;
+    const bob = Math.sin(now*0.004 + p.id)*3.2;
     const t = CRACKER_TYPES.find(c=>c.id===p.type);
     ctx.save();
     ctx.translate(p.x, p.y + bob);
@@ -901,10 +1112,17 @@ function renderLoop(now){
     ctx.beginPath();
     ctx.ellipse(0,18,18,6,0,0,Math.PI*2);
     ctx.fill();
-    ctx.font='28px serif';
-    ctx.textAlign='center';
-    ctx.textBaseline='middle';
-    ctx.fillText(t.emoji, 0, 0);
+    // Draw real cracker image if loaded, else fallback to emoji
+    const img = crackerImages[p.type];
+    if(img && img.complete && img.naturalWidth>0){
+      // draw image centered 36x36
+      try{ ctx.drawImage(img, -18, -18, 36, 36); }catch(e){ ctx.fillText(t.emoji, 0, 0); }
+    } else {
+      ctx.font='28px serif';
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.fillText(t.emoji, 0, 0);
+    }
     ctx.font='700 9px Poppins, sans-serif';
     const label = t.name.toUpperCase();
     const w = ctx.measureText(label).width + 10;
@@ -914,7 +1132,7 @@ function renderLoop(now){
     ctx.fillStyle='#1a0d00';
     ctx.fillText(label, 0, 20);
     ctx.restore();
-  });
+  }
 
   // Particles
   ctx.save();
@@ -993,42 +1211,48 @@ function renderLoop(now){
   }
   ctx.restore();
 
-  // Hand landmarks (mirrored coords already: (1 - x))
-  hands.forEach(h=>{
-    const lm=h.landmarks;
-    ctx.save();
-    ctx.strokeStyle = h.handedness==='Left' ? '#00e676' : '#29b6f6';
-    ctx.lineWidth=2;
-    ctx.globalAlpha=0.9;
-    const connections = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17]];
-    connections.forEach(([a,b])=>{
-      const pa=lm[a], pb=lm[b];
-      const ax=(1 - pa.x)*canvas.width, ay=pa.y*canvas.height;
-      const bx=(1 - pb.x)*canvas.width, by=pb.y*canvas.height;
-      ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
-    });
-    lm.forEach(pt=>{
-      const x=(1 - pt.x)*canvas.width, y=pt.y*canvas.height;
-      ctx.fillStyle=h.handedness==='Left' ? '#00e676' : '#29b6f6';
-      ctx.beginPath(); ctx.arc(x,y, 3.5,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle='#0a0618';
-      ctx.beginPath(); ctx.arc(x,y,1.5,0,Math.PI*2); ctx.fill();
-    });
+  // Hand landmarks — optimized: batch path
+  if(hands.length){
+    for(let hi=0; hi<hands.length; hi++){
+      const h=hands[hi];
+      const lm=h.landmarks;
+      ctx.save();
+      ctx.strokeStyle = h.handedness==='Left' ? '#00e676' : '#29b6f6';
+      ctx.lineWidth=1.8;
+      ctx.globalAlpha=0.85;
+      const connections = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17]];
+      ctx.beginPath();
+      connections.forEach(([a,b])=>{
+        const pa=lm[a], pb=lm[b];
+        const ax=(1 - pa.x)*canvas.width, ay=pa.y*canvas.height;
+        const bx=(1 - pb.x)*canvas.width, by=pb.y*canvas.height;
+        ctx.moveTo(ax,ay); ctx.lineTo(bx,by);
+      });
+      ctx.stroke();
+      // dots — only index/thumb + wrist for perf (reduce from 21 to 9)
+      const dotIdx=[0,4,8,12,16,20,5,9,13,17];
+      dotIdx.forEach(i=>{
+        const pt=lm[i]; if(!pt) return;
+        const x=(1 - pt.x)*canvas.width, y=pt.y*canvas.height;
+        ctx.fillStyle=h.handedness==='Left' ? '#00e676' : '#29b6f6';
+        ctx.beginPath(); ctx.arc(x,y, 2.8,0,Math.PI*2); ctx.fill();
+      });
     const idx=lm[8];
-    const cx=(1 - idx.x)*canvas.width, cy=idx.y*canvas.height;
-    const isPinching = Math.hypot(lm[4].x - idx.x, lm[4].y - idx.y) < PINCH_THRESH;
-    ctx.globalAlpha=1;
-    ctx.strokeStyle=isPinching? '#ffd60a' : (h.handedness==='Left'?'#00e676':'#29b6f6');
-    ctx.lineWidth=isPinching?3:2;
-    ctx.beginPath(); ctx.arc(cx,cy, isPinching? 14:18,0,Math.PI*2); ctx.stroke();
-    ctx.fillStyle=isPinching?'#ffd60a':'#ffffff';
-    ctx.beginPath(); ctx.arc(cx,cy, isPinching?8:5,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle=h.handedness==='Left'?'#00e676':'#29b6f6';
-    ctx.font='700 10px Poppins, sans-serif';
-    ctx.textAlign='center';
-    ctx.fillText(h.handedness.toUpperCase(), cx, cy-22);
-    ctx.restore();
-  });
+      const cx=(1 - idx.x)*canvas.width, cy=idx.y*canvas.height;
+      const isPinching = Math.hypot(lm[4].x - idx.x, lm[4].y - idx.y) < PINCH_THRESH;
+      ctx.globalAlpha=1;
+      ctx.strokeStyle=isPinching? '#ffd60a' : (h.handedness==='Left'?'#00e676':'#29b6f6');
+      ctx.lineWidth=isPinching?2.2:1.6;
+      ctx.beginPath(); ctx.arc(cx,cy, isPinching? 12:16,0,Math.PI*2); ctx.stroke();
+      ctx.fillStyle=isPinching?'#ffd60a':'#ffffff';
+      ctx.beginPath(); ctx.arc(cx,cy, isPinching?6.5:4,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=h.handedness==='Left'?'#00e676':'#29b6f6';
+      ctx.font='700 9px Poppins, sans-serif';
+      ctx.textAlign='center';
+      ctx.fillText(h.handedness.toUpperCase(), cx, cy-20);
+      ctx.restore();
+    }
+  }
 
   // Mouse cursor when no hands
   if(hands.length===0){
@@ -1048,7 +1272,15 @@ function renderLoop(now){
     ctx.restore();
   }
 
-  document.getElementById('fpsChip').innerHTML= `${Math.round(fps)} FPS • <span id="detectedHands">${hands.length} ${hands.length===1?'hand':'hands'}</span>`;
+  // throttle fps DOM update to 5fps
+  if(now - lastFpsUpdate > 200){
+    lastFpsUpdate = now;
+    const el=document.getElementById('fpsChip');
+    if(el) el.innerHTML= `${Math.round(fps)} FPS • <span id="detectedHands">${hands.length} ${hands.length===1?'hand':'hands'}</span>`;
+  }
+  // auto cap particles if over budget
+  if(particles.length > particleBudget) particles.splice(0, particles.length - particleBudget);
+  if(shockwaves.length > 12) shockwaves.splice(0, shockwaves.length-12);
   requestAnimationFrame(renderLoop);
 }
 
@@ -1065,7 +1297,8 @@ function showToast(msg, color='#ffd60a'){
 }
 
 // Bindings
-document.getElementById('btnCamera').addEventListener('click', toggleCamera);
+const _camBtn = document.getElementById('btnCamera') as any;
+if(_camBtn) _camBtn.addEventListener('click', toggleCamera);
 document.getElementById('btnEnableCamera').addEventListener('click', startCamera);
 document.getElementById('btnSound').addEventListener('click', toggleSound);
 document.getElementById('btnSoundToggle2').addEventListener('click', toggleSound);
@@ -1143,10 +1376,15 @@ function toggleAutoCelebrate(){
   }
 }
 
+// dblclick kept as fallback but debounced to avoid double burst from tap system
+let lastDbl=0;
 canvas.addEventListener('dblclick', (e)=>{
+  const now=performance.now();
+  if(now - lastDbl < 500) return;
+  lastDbl=now;
   const rect=canvas.getBoundingClientRect();
   const x=((e.clientX-rect.left)/rect.width)*canvas.width;
-  const y=((e.clientY-rect.top)/rect.height)*canvas.height;
+  const y=((e.clientY - rect.top)/rect.height)*canvas.height;
   fireAt(x,y,activeCracker);
 });
 
@@ -1155,19 +1393,26 @@ window.addEventListener('keydown', (e)=>{
   if(e.code==='Space'){
     e.preventDefault();
     fireAt(canvas.width/2, canvas.height/2, activeCracker);
-  }
-  if(e.code==='KeyC'){
+  } else if(e.code==='Tab' || e.code==='ArrowRight' || e.code==='ArrowLeft'){
+    e.preventDefault();
+    cycleCracker(e.code==='ArrowLeft' ? -1 : 1);
+  } else if(e.code==='KeyC' && !e.ctrlKey){
     placedCrackers=[]; particles=[]; renderArsenal();
+  } else if(e.key==='3' && e.ctrlKey){
+    // legacy, ignore
   }
   if(e.key>='1' && e.key<='8'){
     const idx=parseInt(e.key)-1;
     if(CRACKER_TYPES[idx]) selectCracker(CRACKER_TYPES[idx].id);
   }
+  if(e.key.toLowerCase()==='n') cycleCracker(1);
+  if(e.key.toLowerCase()==='b') cycleCracker(-1);
 });
 canvas.addEventListener('contextmenu', e=> e.preventDefault());
 
 // Init — preload real cracker sounds for realism
 preloadRealSounds();
+preloadCrackerImages();
 setupVolumeControl();
 renderShelf();
 renderArsenal();

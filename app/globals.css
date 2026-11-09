@@ -388,6 +388,11 @@ body::before{
   .gesture-guide{padding:8px}
 }
 
+/* Performance: canvas + images */
+#displayCanvas{ will-change: transform; image-rendering: optimizeSpeed; }
+.cracker-icon img{ will-change: transform; }
+.shelf-grid{ will-change: scroll-position; contain: layout paint; }
+
 /* Ensure HUD doesn't block canvas interactions */
 .hud *{pointer-events:auto}
 .hud{pointer-events:none}

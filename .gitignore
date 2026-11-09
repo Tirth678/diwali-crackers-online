@@ -10,3 +10,4 @@ build
 coverage
 .turbo
 .vercel
+image-search/

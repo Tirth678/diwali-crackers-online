@@ -50,11 +50,11 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Lightweight inline camera prompt — not a separate startup page */}
+        {/* Lightweight inline camera prompt — no off option, camera always ON */}
         <div className="camera-prompt" id="startMessage">
           <span className="prompt-dot"></span>
-          <span>📷 Camera off</span>
-          <button className="btn primary small" id="btnEnableCamera">Enable Camera</button>
+          <span>📷 Camera • Always ON</span>
+          <button className="btn primary small" id="btnEnableCamera">Allow Camera</button>
           <span className="prompt-hint">Tap to allow • Video stays on device</span>
         </div>
         <div className="camera-prompt hidden" id="loadingMessage">
@@ -70,11 +70,11 @@ export default function Page() {
             <div className="logo">🪔</div>
             <div>
               <h1>Diwali <span>Crackers Online</span></h1>
-              <p>Full-screen AR • Pinch to select • Double-pinch to burst</p>
+              <p>Full-screen AR • 1-Tap place • 2-Tap burst • 3-Finger switch</p>
             </div>
           </div>
           <div className="hdr-actions">
-            <button className="btn" id="btnCamera"><span className="status-dot" id="camDot"></span> <span id="camLabel">Camera ON</span></button>
+            <div className="btn" style={{ pointerEvents: 'none', cursor: 'default' }}><span className="status-dot" id="camDot"></span> <span id="camLabel">Camera ON</span></div>
             <button className="btn" id="btnSound">🔊 Sound ON</button>
             <div className="vol-control" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(10,6,24,0.85)', padding: '6px 8px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)' }}>
               <span style={{ fontSize: '10px' }}>🔊</span>
@@ -137,8 +137,8 @@ export default function Page() {
                   <button className="btn small" id="btnSoundToggle2">🔊 Sound</button>
                 </div>
                 <div style={{ fontSize: "10px", color: "var(--muted)", lineHeight: 1.5 }}>
-                  <b style={{ color: "var(--gold)" }}>Single pinch</b> = select/place &nbsp;•&nbsp; <b style={{ color: "var(--gold)" }}>Double pinch</b> = burst<br />
-                  Tip: Mouse click = single, double-click = burst
+                  <b style={{ color: "var(--gold)" }}>1-Tap</b> = place &nbsp;•&nbsp; <b style={{ color: "var(--gold)" }}>2-Tap</b> = burst &nbsp;•&nbsp; <b style={{ color: "var(--gold)" }}>3-Tap</b> = cycle+burst<br />
+                  🖖 3-Finger tap = switch cracker • 🖱️ Wheel/Middle-click to cycle
                 </div>
               </div>
             </div>
@@ -159,9 +159,13 @@ export default function Page() {
               </div>
               <div className="gesture-row">
                 <div className="gesture-icon">⚡⚡</div>
-                <div><b>Double Pinch</b><p>Burst at cursor — on placed cracker = precise!</p></div>
+                <div><b>Double Pinch / Tap</b><p>Burst at cursor — on placed cracker = precise!</p></div>
               </div>
-              <p style={{ fontSize: "9px", color: "var(--muted)", marginTop: "6px", textAlign: "center" }}>Fuljhadi streams while pinching • Rocket needs sky</p>
+              <div className="gesture-row">
+                <div className="gesture-icon">🖖</div>
+                <div><b>3-Finger / Triple Tap</b><p>Switch cracker instantly — cycle through all 8</p></div>
+              </div>
+              <p style={{ fontSize: "9px", color: "var(--muted)", marginTop: "6px", textAlign: "center" }}>Fuljhadi streams while pinching • Rocket needs sky • Wheel to cycle</p>
             </div>
           </div>
         </div>
