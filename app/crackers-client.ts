@@ -47,6 +47,10 @@ const camDot = document.getElementById('camDot');
 const camLabel = document.getElementById('camLabel');
 const startMessage = document.getElementById('startMessage');
 const loadingMessage = document.getElementById('loadingMessage');
+const colorWashEl = document.getElementById('colorWash');
+const screenGlowEl = document.getElementById('screenGlow');
+const vignetteEl = document.getElementById('vignetteFlash');
+const festiveStringEl = document.getElementById('festiveString');
 const detectedHandsEl = document.getElementById('detectedHands');
 const leftBadge = document.getElementById('leftHandBadge');
 const rightBadge = document.getElementById('rightHandBadge');
@@ -86,6 +90,142 @@ function preloadCrackerImages(){
     crackerImages[ct.id]=img;
   });
 }
+function initFestiveLights(){
+  if(!festiveStringEl) return;
+  const colors = ['#ffd60a','#ff3b30','#00e676','#ff4081','#29b6f6','#ffd60a','#ff9a00','#7b2cff'];
+  festiveStringEl.innerHTML='';
+  for(let i=0;i<22;i++){
+    const s=document.createElement('span');
+    s.style.setProperty('--c', colors[i%colors.length]);
+    s.style.setProperty('--d', (1.2+Math.random()*1.4)+'s');
+    s.style.animationDelay=(Math.random()*1.2)+'s';
+    festiveStringEl.appendChild(s);
+  }
+  // ambient floating glow orbs
+  setInterval(()=>{
+    if(Math.random()<0.7) spawnFloatingLight();
+  }, 1200);
+}
+function spawnFloatingLight(){
+  if(emberRain.length>40) return;
+  const x = Math.random()*canvas.width;
+  emberRain.push({
+    x, y: canvas.height+10,
+    vx:(Math.random()-0.5)*0.6, vy: -0.7 - Math.random()*1.1,
+    life:4+Math.random()*3, maxLife:5,
+    size:3+Math.random()*5,
+    color: ['#ffd60a','#ff6e40','#00e676','#ff4081'][Math.floor(Math.random()*4)],
+    glow:true, floating:true
+  });
+}
+function triggerScreenGlow(x,y,color,intensity=0.85){
+  if(!screenGlowEl) return;
+  screenGlowEl.style.setProperty('--x', (x/canvas.width*100)+'%');
+  screenGlowEl.style.setProperty('--y', (y/canvas.height*100)+'%');
+  screenGlowEl.style.setProperty('--flashColor', color);
+  screenGlowEl.classList.add('active');
+  setTimeout(()=> screenGlowEl.classList.remove('active'), 280);
+  // also color wash
+  triggerColorWash(color, intensity*0.22);
+}
+function triggerColorWash(color, alpha=0.18, duration=900){
+  if(!colorWashEl) return;
+  screenWashes.push({color, alpha, life:0, maxLife: duration/1000});
+  colorWashEl.style.background = color;
+  colorWashEl.style.opacity = String(alpha);
+  colorWashEl.classList.add('active');
+  setTimeout(()=>{
+    colorWashEl.style.opacity='0';
+    setTimeout(()=> colorWashEl.classList.remove('active'), 400);
+  }, duration*0.5);
+}
+function triggerVignette(color1, color2){
+  if(!vignetteEl) return;
+  vignetteEl.style.setProperty('--vColor', color1);
+  vignetteEl.style.setProperty('--vColor2', color2);
+  vignetteEl.classList.add('active');
+  setTimeout(()=> vignetteEl.classList.remove('active'), 400);
+}
+function triggerBodyHue(){
+  try{ document.body.classList.add('celebrating'); setTimeout(()=> document.body.classList.remove('celebrating'), 1300); }catch{}
+}
+function spawnConfettiRain(x,y, colorSet){
+  for(let i=0;i<28;i++){
+    confettiPieces.push({
+      x: x + (Math.random()-0.5)*120,
+      y: y - Math.random()*40,
+      vx:(Math.random()-0.5)*4, vy: Math.random()*2+1.5,
+      life: 1.8+Math.random()*0.8, maxLife:2.2,
+      size: 4+Math.random()*5,
+      color: colorSet[Math.floor(Math.random()*colorSet.length)],
+      rot: Math.random()*Math.PI*2, rotSpeed:(Math.random()-0.5)*0.3,
+      gravity:0.18, drag:0.99
+    });
+  }
+}
+function spawnStarRain(count=18, colors=['#ffd60a','#ffffff','#ff4081']){
+  for(let i=0;i<count;i++){
+    const x = Math.random()*canvas.width;
+    const y = -20 - Math.random()*80;
+    particles.push({
+      x, y,
+      vx:(Math.random()-0.5)*1.2, vy: 2.5+Math.random()*3.2,
+      life: 1.2+Math.random()*0.8, maxLife:1.8,
+      size:1.8+Math.random()*2.2,
+      color: colors[Math.floor(Math.random()*colors.length)],
+      gravity:0.04, drag:0.99, star:true, twinkle:true
+    });
+  }
+}
+function spawnWillowBurst(x,y, baseColor){
+  const colors=[baseColor, '#ffd60a', '#ffffff', baseColor];
+  for(let i=0;i<70;i++){
+    const a=Math.random()*Math.PI*2;
+    const s=2+Math.random()*5;
+    particles.push({
+      x, y,
+      vx:Math.cos(a)*s, vy:Math.sin(a)*s*0.9,
+      life:1.4+Math.random()*0.7, maxLife:1.9,
+      size:1.6+Math.random()*1.8,
+      color: colors[Math.floor(Math.random()*colors.length)],
+      gravity:0.07, drag:0.987, willow:true, trail:true
+    });
+  }
+}
+function spawnPeonyBurst(x,y, color, sizeBoost=1){
+  const n=Math.round(90*sizeBoost);
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2;
+    const s=3+Math.random()*6*sizeBoost;
+    particles.push({
+      x,y,
+      vx:Math.cos(a)*s, vy:Math.sin(a)*s,
+      life:1.0+Math.random()*0.3, maxLife:1.3,
+      size:2+Math.random()*2*sizeBoost, color,
+      gravity:0.07, drag:0.985, sparkle:true
+    });
+  }
+  // inner core glitter
+  for(let i=0;i<22;i++){
+    const a=Math.random()*Math.PI*2;
+    particles.push({x,y, vx:Math.cos(a)*1.2, vy:Math.sin(a)*1.2, life:0.6, maxLife:0.6, size:1.2, color:'#ffffff', gravity:0.06, drag:0.99});
+  }
+}
+function spawnFullscreenShower(){
+  // falling embers across whole width - Diwali shower
+  for(let i=0;i<16;i++){
+    const x=Math.random()*canvas.width;
+    const y=-10;
+    particles.push({
+      x,y, vx:(Math.random()-0.5)*0.8, vy:1.2+Math.random()*1.8,
+      life:2.2+Math.random()*1, maxLife:2.8,
+      size:1.5+Math.random()*2,
+      color: Math.random()>0.5?'#ffd60a':'#ff6e40',
+      gravity:0.02, drag:0.99, gentle:true
+    });
+  }
+}
+
 
 function preloadRealSounds(){
   // Authentic Diwali recordings — Pixabay via lavkushprasad93/diwali26 (CC0, freesound_community)
@@ -381,55 +521,86 @@ function spawnParticles(x,y,type){
   const scale = isLowPerf ? 0.62 : 1; // reduce particles on low perf
 
   if(type==='anar'){
-    const n = Math.round(90*scale);
+    // FULLSCREEN FOUNTAIN EUPHORIA - tall golden shower that lights whole screen
+    triggerScreenGlow(x,y, color, 0.9);
+    triggerColorWash(color, 0.16, 1100);
+    triggerVignette(color+'88', accent+'55');
+    triggerBodyHue();
+    flashColor=color; flashAlpha = 0.32;
+    const n = Math.round(140*scale);
     for(let i=0;i<n;i++){
-      const angle = (Math.random()*0.9 -0.45) * Math.PI;
-      const speed = 3 + Math.random()*7;
-      const vx = Math.cos(angle + Math.PI/2) * speed * 0.7;
-      const vy = Math.sin(angle + Math.PI/2) * speed - Math.random()*2;
+      const angle = (Math.random()*1.1 -0.55) * Math.PI;
+      const speed = 4 + Math.random()*9;
+      const vx = Math.cos(angle + Math.PI/2) * speed * 0.85;
+      const vy = Math.sin(angle + Math.PI/2) * speed - Math.random()*2.5;
       particles.push({
         x,y, vx, vy,
-        life:0.7+Math.random()*0.6, maxLife:1.3,
-        size:2+Math.random()*3,
-        color: Math.random()>0.4? color : accent,
-        gravity:0.18, drag:0.97, sparkle:true
+        life:0.8+Math.random()*0.7, maxLife:1.4,
+        size:2.2+Math.random()*3.2,
+        color: Math.random()>0.3? color : (Math.random()>0.5? accent:'#ffffff'),
+        gravity:0.16, drag:0.973, sparkle:true, fountain:true
       });
     }
-    shockwaves.push({x,y, r:0, maxR:90, life:0, maxLife:0.35, color});
-    flashAlpha = 0.18;
-    const nSmokeA=Math.round(8*scale);
-    for(let i=0;i<nSmokeA;i++) particles.push({x, y: y-6, vx:(Math.random()-0.5)*0.9, vy:-0.5-Math.random()*0.7, life:1.6, maxLife:1.6, size:4+Math.random()*4, color:'rgba(100,100,100,0.28)', gravity:-0.02, drag:0.97, smoke:true});
+    // secondary falling stars across whole screen
+    spawnStarRain(22, [color, accent, '#ffffff', '#ffd60a']);
+    spawnFullscreenShower();
+    for(let k=0;k<3;k++){
+      setTimeout(()=>{
+        for(let i=0;i<18;i++){
+          const a=Math.random()*Math.PI*2;
+          particles.push({x:x+(Math.random()-0.5)*80, y:y-60-Math.random()*80, vx:Math.cos(a)*1.8, vy:Math.sin(a)*1.8, life:0.7, maxLife:0.7, size:1.6, color: Math.random()>0.5? '#ffd60a':'#ffffff', gravity:0.05, drag:0.98, star:true});
+        }
+      }, k*220);
+    }
+    shockwaves.push({x,y, r:0, maxR:110, life:0, maxLife:0.42, color});
+    shockwaves.push({x,y, r:0, maxR:150, life:0.05, maxLife:0.48, color: accent});
+    const nSmokeA=Math.round(10*scale);
+    for(let i=0;i<nSmokeA;i++) particles.push({x, y: y-6, vx:(Math.random()-0.5)*1.1, vy:-0.7-Math.random()*0.9, life:1.8, maxLife:1.8, size:5+Math.random()*5, color:'rgba(120,110,100,0.32)', gravity:-0.02, drag:0.97, smoke:true});
   } else if(type==='rocket'){
+    // ROCKET ASCEND - full trail then giant peony that FILLS SCREEN
+    triggerColorWash('#ff3b30', 0.12, 700);
     const launchY = y;
-    const targetY = y - 220 - Math.random()*180;
-    const targetX = x + (Math.random()-0.5)*60;
-    const nTrail = Math.round(20*scale);
+    const targetY = Math.max(60, y - 260 - Math.random()*200);
+    const targetX = x + (Math.random()-0.5)*70;
+    const nTrail = Math.round(32*scale);
     for(let i=0;i<nTrail;i++){
-      // smoke trail
-      if(i%2===0) particles.push({x: x + (Math.random()-0.5)*8, y: launchY - i*10, vx:(Math.random()-0.5)*0.5, vy:-0.6-Math.random()*0.3, life:0.9, maxLife:0.9, size:4+Math.random()*5, color:'rgba(120,120,120,0.32)', gravity:-0.015, drag:0.97, smoke:true});
+      if(i%2===0) particles.push({x: x + (Math.random()-0.5)*10, y: launchY - i*11, vx:(Math.random()-0.5)*0.7, vy:-0.8-Math.random()*0.5, life:1.0, maxLife:1.0, size:5+Math.random()*6, color:'rgba(130,120,115,0.35)', gravity:-0.018, drag:0.97, smoke:true});
       particles.push({
-        x: x + (Math.random()-0.5)*6,
-        y: launchY - i*10,
-        vx:(Math.random()-0.5)*0.8, vy:-6 - Math.random()*2,
-        life:0.5, maxLife:0.6, size:2.5, color:'#ff9a00', gravity:0, drag:0.98, trail:true
+        x: x + (Math.random()-0.5)*7,
+        y: launchY - i*11,
+        vx:(Math.random()-0.5)*1, vy:-7 - Math.random()*3,
+        life:0.6, maxLife:0.7, size:3, color: i%3===0?'#ff3b30': (i%3===1?'#ffd60a':'#ff9a00'), gravity:-0.02, drag:0.98, trail:true
       });
+      // rising spark
+      if(i%4===0) particles.push({x: x+(Math.random()-0.5)*8, y: launchY - i*11, vx:(Math.random()-0.5)*1.5, vy:-2-Math.random()*2, life:0.5, maxLife:0.5, size:1.8, color:'#ffd60a', gravity:0.03, drag:0.98, sparkle:true});
     }
+    // whoosh light streak
+    lightStreaks.push({x, y: launchY, tx: targetX, ty: targetY, life:0, maxLife:0.32, color:'#ffd60a'});
     setTimeout(()=>{
-      const nBurst = Math.round(110*scale);
-      for(let i=0;i<nBurst;i++){
-        const a = Math.random()*Math.PI*2;
-        const s = 3+Math.random()*8;
-        particles.push({
-          x:targetX, y:targetY,
-          vx:Math.cos(a)*s, vy:Math.sin(a)*s,
-          life:1.0, maxLife:1.0, size:2+Math.random()*2.5, color: Math.random()>0.5? '#ffd60a' : color,
-          gravity:0.09, drag:0.985, sparkle:true
-        });
+      triggerScreenGlow(targetX, targetY, '#ffd60a', 1.0);
+      triggerColorWash('#ffd60a', 0.24, 900);
+      triggerVignette('#ffd60a88','#ff3b3055');
+      triggerBodyHue();
+      flashColor='#ffd60a'; flashAlpha = 0.58;
+      // MEGA PEONY - triple overlapping to fill screen
+      const peonyColors=['#ffd60a','#ff3b30','#00e676','#7b2cff','#ff4081','#29b6f6'];
+      const chosen=peonyColors[Math.floor(Math.random()*peonyColors.length)];
+      spawnPeonyBurst(targetX, targetY, chosen, 1.4);
+      setTimeout(()=> spawnPeonyBurst(targetX+(Math.random()-0.5)*60, targetY+(Math.random()-0.5)*40, peonyColors[Math.floor(Math.random()*peonyColors.length)], 1.1), 160);
+      setTimeout(()=> spawnWillowBurst(targetX, targetY, chosen), 280);
+      // screen edge secondary bursts to fill whole screen
+      for(let k=0;k<2;k++){
+        setTimeout(()=>{
+          const bx=Math.random()*canvas.width;
+          const by=60+Math.random()*(canvas.height*0.45);
+          spawnPeonyBurst(bx, by, peonyColors[Math.floor(Math.random()*peonyColors.length)], 0.7);
+        }, 320+k*180);
       }
-      shockwaves.push({x:targetX, y:targetY, r:0, maxR:140, life:0, maxLife:0.45, color:'#ffd60a'});
-      flashAlpha = 0.45;
-      const nSmokeR=Math.round(10*scale);
-      for(let i=0;i<nSmokeR;i++) particles.push({x:targetX, y:targetY, vx:(Math.random()-0.5)*0.6, vy:-0.4-Math.random()*0.5, life:1.4, maxLife:1.4, size:5+Math.random()*6, color:'rgba(90,90,90,0.38)', gravity:-0.018, drag:0.98, smoke:true});
+      spawnStarRain(18, ['#ffd60a','#ffffff','#ff3b30']);
+      shockwaves.push({x:targetX, y:targetY, r:0, maxR:180, life:0, maxLife:0.52, color:'#ffd60a'});
+      shockwaves.push({x:targetX, y:targetY, r:0, maxR:220, life:0.08, maxLife:0.58, color:'#ffffff'});
+      const nSmokeR=Math.round(14*scale);
+      for(let i=0;i<nSmokeR;i++) particles.push({x:targetX, y:targetY, vx:(Math.random()-0.5)*0.9, vy:-0.6-Math.random()*0.7, life:1.6, maxLife:1.6, size:6+Math.random()*7, color:'rgba(90,90,90,0.40)', gravity:-0.02, drag:0.98, smoke:true});
       const nSmokeB=Math.round(18*scale);
     for(let i=0;i<nSmokeB;i++){
         const a = Math.random()*Math.PI*2;
@@ -438,44 +609,84 @@ function spawnParticles(x,y,type){
     }, 320);
     return;
   } else if(type==='chakri'){
+    // CHAKRI - spinning light disc that illuminates entire floor + orbiting sparks covering screen
+    triggerScreenGlow(x,y,'#00e676',0.8);
+    triggerColorWash('#00e676',0.18,1000);
+    triggerVignette('#00e67666','#ffd60a44');
+    flashColor='#00e676'; flashAlpha = 0.28;
     const cx=x, cy=y;
-    shockwaves.push({x:cx,y:cy,r:0,maxR:70,life:0,maxLife:0.6,color:'#00e676'});
-    flashAlpha = 0.12;
-    const nChak = Math.round(70*scale);
+    shockwaves.push({x:cx,y:cy,r:0,maxR:90,life:0,maxLife:0.65,color:'#00e676'});
+    shockwaves.push({x:cx,y:cy,r:0,maxR:140,life:0.06,maxLife:0.7,color:'#ffd60a'});
+    // ground illumination ring
+    rangoliBursts.push({x:cx, y:cy+18, r:0, maxR:180, life:0, maxLife:1.2, color:'#00e676'});
+    const nChak = Math.round(110*scale);
     for(let i=0;i<nChak;i++){
-      const a = (i/70)*Math.PI*2;
-      const r = 8 + Math.random()*22;
+      const a = (i/110)*Math.PI*2 + Math.random()*0.3;
+      const r = 10 + Math.random()*28;
       particles.push({
         x:cx+Math.cos(a)*r, y:cy+Math.sin(a)*r,
-        vx:Math.cos(a+Math.PI/2)*4, vy:Math.sin(a+Math.PI/2)*4,
-        life:0.7, maxLife:0.7, size:2.2, color: i%2? '#00e676':'#ffd60a',
-        gravity:0.08, drag:0.97
+        vx:Math.cos(a+Math.PI/2)*5.5, vy:Math.sin(a+Math.PI/2)*5.5 + (Math.random()-0.5)*1.5,
+        life:0.9, maxLife:0.9, size:2.6, color: i%3===0? '#00e676':(i%3===1?'#ffd60a':'#ffffff'),
+        gravity:0.06, drag:0.968, sparkle:true
       });
     }
-    const nChak2=Math.round(40*scale);
+    // orbiting outer sparks that fly to screen edges
+    for(let i=0;i<16;i++){
+      const a=(i/16)*Math.PI*2;
+      const tx=cx+Math.cos(a)*canvas.width*0.42;
+      const ty=cy+Math.sin(a)*canvas.height*0.32;
+      lightStreaks.push({x:cx, y:cy, tx, ty, life:0, maxLife:0.55, color: i%2?'#00e676':'#ffd60a'});
+    }
+    const nChak2=Math.round(50*scale);
     for(let i=0;i<nChak2;i++){
       const a=Math.random()*Math.PI*2;
-      particles.push({x:cx,y:cy,vx:Math.cos(a)*5, vy:Math.sin(a)*5-1, life:0.6, maxLife:0.6, size:1.8, color:'#ffffff', gravity:0.12, drag:0.98});
+      const s=4+Math.random()*6;
+      particles.push({x:cx,y:cy,vx:Math.cos(a)*s, vy:Math.sin(a)*s*0.85-1.2, life:0.85, maxLife:0.85, size:2, color: Math.random()>0.5?'#ffffff':'#ffd60a', gravity:0.09, drag:0.975, sparkle:true});
     }
+    spawnStarRain(16, ['#00e676','#ffd60a','#ffffff']);
   } else if(type==='bomb' || type==='laxmi'){
     const isMega = type==='laxmi';
-    const base = isMega? 160 : 110;
-    const count = Math.round(base*scale);
-    const maxR = isMega? 180 : 120;
-    shockwaves.push({x,y,r:0,maxR, life:0, maxLife:0.4, color:isMega?'#7b2cff':color});
-    shockwaves.push({x,y,r:0,maxR:maxR*0.6, life:0.06, maxLife:0.35, color:'#ffffff'});
+    // BOMB - FULLSCREEN APOCALYPSE - lights up entire screen with multi-color
+    const blastColor = isMega? '#7b2cff' : color;
+    triggerScreenGlow(x,y, blastColor, 1.0);
+    triggerColorWash(blastColor, isMega?0.32:0.24, isMega?1400:1000);
+    triggerVignette(blastColor+'aa', '#ffffff66');
+    triggerBodyHue();
+    flashColor='#ffffff'; flashAlpha = isMega ? 0.88 : 0.72;
+    const base = isMega? 220 : 160;
+    const count = Math.round(base*scale*1.2);
+    const maxR = isMega? 260 : 180;
+    shockwaves.push({x,y,r:0,maxR, life:0, maxLife:0.48, color:isMega?'#7b2cff':color});
+    shockwaves.push({x,y,r:0,maxR:maxR*0.7, life:0.06, maxLife:0.42, color:'#ffd60a'});
+    shockwaves.push({x,y,r:0,maxR:maxR*1.05, life:0.12, maxLife:0.55, color:'#ffffff'});
+    // triple color wash sequence
+    setTimeout(()=> triggerColorWash('#ff3b30',0.18,700), 120);
+    setTimeout(()=> triggerColorWash('#ffd60a',0.14,600), 340);
     for(let i=0;i<count;i++){
       const a=Math.random()*Math.PI*2;
-      const s= isMega? 2+Math.random()*9 : 2+Math.random()*7;
+      const s= isMega? 2.5+Math.random()*11 : 2.5+Math.random()*9;
+      const colPick=Math.random();
+      const pColor = colPick>0.4? blastColor : (colPick>0.2? '#ffd60a' : (Math.random()>0.5?'#ff3b30':'#ffffff'));
       particles.push({
-        x,y, vx:Math.cos(a)*s, vy:Math.sin(a)*s,
-        life:0.9, maxLife:0.9, size: isMega? 2+Math.random()*3.5 : 2+Math.random()*2.5,
-        color: Math.random()>0.33? color : (Math.random()>0.5? '#ffd60a':'#ffffff'),
-        gravity:0.09, drag:0.987, sparkle:true
+        x,y, vx:Math.cos(a)*s*1.1, vy:Math.sin(a)*s,
+        life:1.0+Math.random()*0.4, maxLife:1.3, size: isMega? 2.5+Math.random()*4 : 2.2+Math.random()*3,
+        color: pColor,
+        gravity:0.08, drag:0.984, sparkle:true
       });
     }
-    particles.push({x,y,vx:0,vy:0,life:0.18,maxLife:0.18,size:maxR, color:'#ffffff', flash:true});
-    flashAlpha = isMega ? 0.72 : 0.55;
+    // secondary bursts at screen corners to fill whole screen
+    for(let k=0;k<(isMega?4:2);k++){
+      setTimeout(()=>{
+        const bx=Math.random()*canvas.width;
+        const by=Math.random()*canvas.height*0.8;
+        spawnPeonyBurst(bx, by, ['#ffd60a','#ff3b30','#7b2cff','#00e676'][k%4], 0.9);
+      }, 200+k*140);
+    }
+    // confetti rain after blast
+    setTimeout(()=> spawnConfettiRain(x,y, ['#ffd60a','#ff3b30',blastColor,'#ffffff']), 180);
+    spawnStarRain(isMega?28:20, [blastColor,'#ffd60a','#ffffff']);
+    particles.push({x,y,vx:0,vy:0,life:0.22,maxLife:0.22,size:maxR*1.1, color:'#ffffff', flash:true});
+
     const nSmokeB=Math.round(18*scale);
     for(let i=0;i<nSmokeB;i++){
       const a=Math.random()*Math.PI*2;
@@ -483,45 +694,103 @@ function spawnParticles(x,y,type){
       particles.push({x,y,vx:Math.cos(a)*s*0.35, vy:Math.sin(a)*s*0.35 - Math.random()*0.5, life:1.1+Math.random()*0.7, maxLife:1.9, size:6+Math.random()*8, color:'rgba(140,120,100,0.42)', gravity:-0.025, drag:0.985, smoke:true});
     }
   } else if(type==='fuljhadi'){
-    const nFul = Math.round(55*scale);
+    // FULJHADI - handheld sparkler shower that fills screen with warm glitter
+    triggerScreenGlow(x,y,'#ffd60a',0.7);
+    triggerColorWash('#ff9a00',0.14,800);
+    flashColor='#ffd60a'; flashAlpha=0.22;
+    const nFul = Math.round(90*scale);
     for(let i=0;i<nFul;i++){
       const a=Math.random()*Math.PI*2;
-      const s=Math.random()*4 + 1;
+      const s=1.5+Math.random()*5.5;
       particles.push({
-        x,y, vx:Math.cos(a)*s, vy:Math.sin(a)*s - Math.random()*1,
-        life:0.6+Math.random()*0.5, maxLife:1.1, size:1.2+Math.random()*2,
-        color: Math.random()>0.2?'#ffd60a':'#ff9a00', gravity:0.11, drag:0.96, sparkle:true
+        x,y, vx:Math.cos(a)*s*0.9, vy:Math.sin(a)*s*0.7 - Math.random()*1.5,
+        life:0.75+Math.random()*0.6, maxLife:1.2, size:1.6+Math.random()*2.4,
+        color: Math.random()>0.25?'#ffd60a':(Math.random()>0.5?'#ff9a00':'#ffffff'), gravity:0.09, drag:0.958, sparkle:true
       });
     }
+    // sparkler rain across whole width
+    for(let i=0;i<18;i++){
+      const rx=x+(Math.random()-0.5)*140;
+      const ry=y-20-Math.random()*60;
+      particles.push({x:rx, y:ry, vx:(Math.random()-0.5)*1, vy:1.5+Math.random()*1.5, life:0.9, maxLife:0.9, size:1.4, color:'#ffd60a', gravity:0.06, drag:0.99, sparkle:true, twinkle:true});
+    }
+    spawnStarRain(14, ['#ffd60a','#ff9a00','#ffffff']);
+    rangoliBursts.push({x, y, r:0, maxR:70, life:0, maxLife:0.9, color:'#ffd60a'});
   } else if(type==='skyshot'){
+    // SKYSHOT - EPIC MULTI-COLOR FESTIVAL ACROSS ENTIRE SCREEN
+    triggerBodyHue();
     const bursts = [
-      {color:'#ff3b30', count:Math.round(70*scale)},
-      {color:'#ffd60a', count:Math.round(60*scale)},
-      {color:'#7b2cff', count:Math.round(60*scale)},
-      {color:'#00e676', count:Math.round(60*scale)},
+      {color:'#ff3b30', count:Math.round(90*scale)},
+      {color:'#ffd60a', count:Math.round(85*scale)},
+      {color:'#7b2cff', count:Math.round(85*scale)},
+      {color:'#00e676', count:Math.round(85*scale)},
+      {color:'#ff4081', count:Math.round(75*scale)},
     ];
+    // launch streaks
+    for(let i=0;i<4;i++){
+      const sx=x+(Math.random()-0.5)*36;
+      lightStreaks.push({x: sx, y: y+40, tx: x+(Math.random()-0.5)*120, ty: y-80-Math.random()*140, life:0, maxLife:0.35, color: bursts[i%4].color});
+    }
     bursts.forEach((b, idx)=>{
       setTimeout(()=>{
-        const bx = x + (Math.random()-0.5)*80;
-        const by = y - Math.random()*60 - 20;
-        shockwaves.push({x:bx,y:by,r:0,maxR:70,life:0,maxLife:0.32,color:b.color});
-        if(idx===0) flashAlpha = 0.35;
-        for(let i=0;i<b.count;i++){
-          const a=Math.random()*Math.PI*2;
-          const s=3+Math.random()*6;
-          particles.push({x:bx,y:by,vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:0.85, maxLife:0.85, size:1.8+Math.random()*2, color:b.color, gravity:0.07, drag:0.985, sparkle:true});
-        }
-      }, idx*160);
+        // spread bursts across whole screen width for fullscreen coverage
+        const bx = (canvas.width*(0.15+Math.random()*0.7));
+        const by = 60+Math.random()*(canvas.height*0.52);
+        // each burst lights up screen
+        triggerScreenGlow(bx,by,b.color,0.82);
+        triggerColorWash(b.color,0.18,750);
+        if(idx===0){ flashColor=b.color; flashAlpha = 0.42; }
+        if(idx===2) triggerVignette(b.color+'77','#ffd60a44');
+        shockwaves.push({x:bx,y:by,r:0,maxR:90,life:0,maxLife:0.38,color:b.color});
+        shockwaves.push({x:bx,y:by,r:0,maxR:125,life:0.06,maxLife:0.45,color:'#ffffff'});
+        // main peony
+        spawnPeonyBurst(bx,by,b.color,1.2);
+        // willow tails for second half
+        if(idx>=2) spawnWillowBurst(bx,by,b.color);
+        // extra willow/chrysanthemum for fullscreen fill
+        setTimeout(()=>{
+          for(let j=0;j<18;j++){
+            const a=Math.random()*Math.PI*2;
+            particles.push({x:bx, y:by, vx:Math.cos(a)*2.5, vy:Math.sin(a)*2.5, life:0.7, maxLife:0.7, size:1.4, color:'#ffffff', gravity:0.04, drag:0.99});
+          }
+        }, 90);
+      }, idx*165);
     });
+    // finale glitter rain across whole screen
+    setTimeout(()=>{
+      spawnStarRain(26, ['#ffd60a','#ff3b30','#7b2cff','#00e676','#ff4081']);
+      triggerColorWash('#ffffff',0.12,600);
+      flashColor='#ffffff'; flashAlpha=0.28;
+    }, 850);
   } else if(type==='pop'){
-    const nPop = Math.round(35*scale);
+    // POP POP - confetti explosion that rains across whole screen
+    triggerScreenGlow(x,y,'#29b6f6',0.75);
+    triggerColorWash('#29b6f6',0.16,700);
+    triggerVignette('#29b6f633','#ffd60a33');
+    flashColor='#29b6f6'; flashAlpha = 0.32;
+    const nPop = Math.round(55*scale);
     for(let i=0;i<nPop;i++){
       const a=Math.random()*Math.PI*2;
-      const s=1.5+Math.random()*4;
-      particles.push({x,y,vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:0.5, maxLife:0.5, size:2+Math.random()*2, color: Math.random()>0.5? '#29b6f6':'#ffd60a', gravity:0.12, drag:0.96});
+      const s=2+Math.random()*5;
+      const col = ['#29b6f6','#ffd60a','#ff4081','#00e676','#ffffff'][Math.floor(Math.random()*5)];
+      particles.push({x,y,vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:0.7, maxLife:0.7, size:2.5+Math.random()*2, color: col, gravity:0.11, drag:0.958, sparkle:true});
     }
-    shockwaves.push({x,y,r:0,maxR:55,life:0,maxLife:0.28,color:'#29b6f6'});
-    flashAlpha = 0.20;
+    // confetti rain that covers entire screen
+    spawnConfettiRain(x,y, ['#29b6f6','#ffd60a','#ff4081','#00e676','#ff9a00']);
+    // secondary pops at edges
+    setTimeout(()=>{
+      for(let k=0;k<2;k++){
+        const bx=Math.random()*canvas.width;
+        const by=Math.random()*canvas.height*0.7+60;
+        for(let i=0;i<22;i++){
+          const a=Math.random()*Math.PI*2;
+          particles.push({x:bx, y:by, vx:Math.cos(a)*3, vy:Math.sin(a)*3, life:0.5, maxLife:0.5, size:1.8, color: ['#ffd60a','#29b6f6'][k%2], gravity:0.1, drag:0.96});
+        }
+        shockwaves.push({x:bx,y:by,r:0,maxR:45,life:0,maxLife:0.28,color:['#ffd60a','#29b6f6'][k%2]});
+      }
+    }, 120);
+    shockwaves.push({x,y,r:0,maxR:75,life:0,maxLife:0.32,color:'#29b6f6'});
+    shockwaves.push({x,y,r:0,maxR:105,life:0.04,maxLife:0.38,color:'#ffd60a'});
   }
 }
 
@@ -652,44 +921,93 @@ function toggleCamera(){
   else showToast('Camera is always ON — enjoy the celebration! 🪔', '#00e676');
 }
 
-// Hand tracking
+// ===== PRO HAND TRACKING — smooth thumb+index with OneEuro filtering & adaptive pinch =====
 let handLandmarker = null;
 let lastVideoTime = -1;
 let hands = [];
 let handStates = {
-  Left: { isPinching:false, pinchStart:0, cursor:{x:0,y:0}, tapCount:0, tapTimer:null, lastTapTime:0, lastTapX:0, lastTapY:0 },
-  Right:{ isPinching:false, pinchStart:0, cursor:{x:0,y:0}, tapCount:0, tapTimer:null, lastTapTime:0, lastTapX:0, lastTapY:0 },
-  Mouse:{ isPinching:false, pinchStart:0, cursor:{x: canvas.width/2, y: canvas.height/2 }, tapCount:0, tapTimer:null, lastTapTime:0, lastTapX:0, lastTapY:0 }
+  Left: { isPinching:false, pinchStart:0, cursor:{x:0,y:0}, thumb:{x:0,y:0}, tapCount:0, tapTimer:null, lastTapTime:0, lastTapX:0, lastTapY:0, pinchFrames:0, releaseFrames:0, handScale:0.15 },
+  Right:{ isPinching:false, pinchStart:0, cursor:{x:0,y:0}, thumb:{x:0,y:0}, tapCount:0, tapTimer:null, lastTapTime:0, lastTapX:0, lastTapY:0, pinchFrames:0, releaseFrames:0, handScale:0.15 },
+  Mouse:{ isPinching:false, pinchStart:0, cursor:{x: canvas.width/2, y: canvas.height/2 }, thumb:{x:0,y:0}, tapCount:0, tapTimer:null, lastTapTime:0, lastTapX:0, lastTapY:0, pinchFrames:0, releaseFrames:0 }
 };
-const PINCH_THRESH = 0.068; // focused pinch threshold
-const PINCH_RELEASE_THRESH = 0.082; // hysteresis
-// --- Improved tap system ---
-const TAP_TIMEOUT = 300; // snappy: 300ms for single, triple still works (2 gaps = 600ms total)
-const HOLD_MAX_MS = 380; // crisp tap window
-const TAP_MOVE_TOL = 28;
+const PINCH_ON_RATIO = 0.32;  // pinch when thumb-index < 32% of hand size
+const PINCH_OFF_RATIO = 0.42; // release when > 42% (hysteresis)
+const TAP_TIMEOUT = 300;
+const HOLD_MAX_MS = 420;
+const TAP_MOVE_TOL = 32;
 const THREE_FINGER_HOLD_MAX = 500;
 let lastTapVisual = 0;
 let threeFingerState = { active:false, startTime:0, startX:0, startY:0, moved:false };
 let lastFpsUpdate = 0;
-let isLowPerf = true; // lightweight default
-try{ isLowPerf = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 6) || window.innerWidth < 900 || true; }catch{}
-let particleBudget = 280; // ultra-light
+let isLowPerf = false;
+try{ isLowPerf = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || window.innerWidth < 600; }catch{}
+let particleBudget = 900;
 let lastPredictTime = 0;
-let PREDICT_INTERVAL = 65; // focused ~15fps precise
+let PREDICT_INTERVAL = 16; // 60fps smooth — was 65 throttled
+let screenWashes = [];
+let emberRain = [];
+let confettiPieces = [];
+let lightStreaks = [];
+let rangoliBursts = [];
+let flashColor = '#ffd60a';
 let handCache = { count:0, text:'0 hands' };
 let lastHandDomUpdate = 0;
+
+// OneEuro Filter for buttery smooth tracking (no jitter, no lag)
+class OneEuroFilter {
+  constructor(freq=60, minCutoff=1.0, beta=0.007, dCutoff=1.0){
+    this.freq=freq; this.minCutoff=minCutoff; this.beta=beta; this.dCutoff=dCutoff;
+    this.xPrev=null; this.dxPrev=0; this.tPrev=null;
+  }
+  alpha(cutoff){
+    const te=1/this.freq;
+    const tau=1/(2*Math.PI*cutoff);
+    return 1/(1+tau/te);
+  }
+  filter(x, t){
+    if(this.tPrev===null){ this.xPrev=x; this.tPrev=t; return x; }
+    const dt=(t-this.tPrev)/1000;
+    if(dt<=0) return this.xPrev;
+    this.freq=1/dt;
+    const dx=(x-this.xPrev)/dt;
+    const alphaD=this.alpha(this.dCutoff);
+    const dxHat=alphaD*dx + (1-alphaD)*this.dxPrev;
+    const cutoff=this.minCutoff + this.beta*Math.abs(dxHat);
+    const alphaX=this.alpha(cutoff);
+    const xHat=alphaX*x + (1-alphaX)*this.xPrev;
+    this.xPrev=xHat; this.dxPrev=dxHat; this.tPrev=t;
+    return xHat;
+  }
+  reset(){ this.xPrev=null; this.dxPrev=0; this.tPrev=null; }
+}
+const handFilters = {
+  Left: { thumbX: new OneEuroFilter(60,1.2,0.008), thumbY: new OneEuroFilter(60,1.2,0.008), indexX: new OneEuroFilter(60,1.2,0.008), indexY: new OneEuroFilter(60,1.2,0.008) },
+  Right:{ thumbX: new OneEuroFilter(60,1.2,0.008), thumbY: new OneEuroFilter(60,1.2,0.008), indexX: new OneEuroFilter(60,1.2,0.008), indexY: new OneEuroFilter(60,1.2,0.008) },
+  Mouse:{ thumbX: new OneEuroFilter(60,2,0.01), thumbY: new OneEuroFilter(60,2,0.01), indexX: new OneEuroFilter(60,2,0.01), indexY: new OneEuroFilter(60,2,0.01) }
+};
+function smoothHandPos(handLabel, thumbRaw, indexRaw, now){
+  const f=handFilters[handLabel] || handFilters.Mouse;
+  const sx=f.indexX.filter(indexRaw.x, now);
+  const sy=f.indexY.filter(indexRaw.y, now);
+  const tx=f.thumbX.filter(thumbRaw.x, now);
+  const ty=f.thumbY.filter(thumbRaw.y, now);
+  return { index:{x:sx,y:sy}, thumb:{x:tx,y:ty} };
+}
+function resetHandFilters(label){
+  const f=handFilters[label];
+  if(f){ f.thumbX.reset(); f.thumbY.reset(); f.indexX.reset(); f.indexY.reset(); }
+}
 
 async function initHandTracking(){
   if(handLandmarker) return;
   loadingMessage.classList.remove('hidden');
+  loadingMessage.querySelector('span:last-child') && (loadingMessage.querySelector('span:last-child').textContent='Loading pro hand tracking…');
   try{
+    // Primary: MediaPipe Tasks Vision (latest, GPU)
     const visionUrl = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs';
-    // Use Function to avoid webpack bundling the dynamic CDN import
     const vision: any = await (Function('u', 'return import(u)') as any)(visionUrl);
     const { FilesetResolver, HandLandmarker } = vision;
-    const fileset = await FilesetResolver.forVisionTasks(
-      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
-    );
+    const fileset = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
     handLandmarker = await HandLandmarker.createFromOptions(fileset, {
       baseOptions: {
         modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
@@ -697,19 +1015,97 @@ async function initHandTracking(){
       },
       runningMode: 'VIDEO',
       numHands: 2,
-      minHandDetectionConfidence: 0.65,
-      minHandPresenceConfidence: 0.65,
-      minTrackingConfidence: 0.62
+      minHandDetectionConfidence: 0.58,
+      minHandPresenceConfidence: 0.58,
+      minTrackingConfidence: 0.58
     });
     loadingMessage.classList.add('hidden');
-    showToast('Hand tracking ready — both hands tracked!', '#00e676');
+    showToast('✋ Pro hand tracking ready — thumb+index smooth', '#00e676');
     requestAnimationFrame(predictLoop);
   }catch(err){
-    console.error('Hand tracking load failed', err);
-    loadingMessage.classList.add('hidden');
-    showToast('Hand AI failed — mouse/touch still works', '#ff9a00');
-    handLandmarker=null;
+    console.warn('Tasks Vision failed, trying fallback Hands API', err);
+    try{
+      // Fallback: classic MediaPipe Hands via CDN (more tolerant on some devices)
+      await loadClassicHands();
+    }catch(err2){
+      console.error('All hand tracking failed', err2);
+      loadingMessage.classList.add('hidden');
+      showToast('Hand AI failed — mouse/touch still works', '#ff9a00');
+      handLandmarker=null;
+    }
   }
+}
+async function loadClassicHands(){
+  // Dynamically inject MediaPipe Hands classic pipeline
+  return new Promise((resolve, reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js';
+    s.crossOrigin='anonymous';
+    s.onload=async ()=>{
+      try{
+        const Hands=(window as any).Hands;
+        if(!Hands) throw new Error('Hands not loaded');
+        const handsInst=new Hands({locateFile:(f)=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${f}`});
+        handsInst.setOptions({maxNumHands:2, modelComplexity:1, minDetectionConfidence:0.6, minTrackingConfidence:0.6});
+        handsInst.onResults((res)=>{
+          // Convert classic Hands results to our hands array format for shared predict
+          const now=performance.now();
+          hands=[];
+          if(res.multiHandLandmarks){
+            for(let i=0;i<res.multiHandLandmarks.length;i++){
+              const lm=res.multiHandLandmarks[i];
+              const handed=res.multiHandedness?.[i]?.label || (i===0?'Right':'Left');
+              // classic Hands gives normalized 0-1 directly (not mirrored)
+              const idx=lm[8], th=lm[4];
+              // smooth
+              const sm=smoothHandPos(handed, {x: th.x, y: th.y}, {x: idx.x, y: idx.y}, now);
+              const cx=(1-sm.index.x)*canvas.width;
+              const cy=sm.index.y*canvas.height;
+              const tx=(1-sm.thumb.x)*canvas.width;
+              const ty=sm.thumb.y*canvas.height;
+              // hand scale from wrist(0) to middle tip(12)
+              const wrist=lm[0], mid=lm[12];
+              const handScale=Math.hypot(mid.x-wrist.x, mid.y-wrist.y) || 0.18;
+              const pinchDist=Math.hypot(sm.index.x - sm.thumb.x, sm.index.y - sm.thumb.y);
+              const ratio=handScale>0.02 ? pinchDist/handScale : 1;
+              let isPinchRaw=false;
+              const st=handStates[handed];
+              const thresh=st && st.isPinching ? PINCH_OFF_RATIO : PINCH_ON_RATIO;
+              isPinchRaw=ratio < thresh;
+              // debounce 2 frames
+              if(isPinchRaw){ st.pinchFrames=(st.pinchFrames||0)+1; st.releaseFrames=0; } else { st.releaseFrames=(st.releaseFrames||0)+1; st.pinchFrames=0; }
+              const isPinch= st.isPinching ? st.releaseFrames<2 : st.pinchFrames>=2;
+              hands.push({landmarks:lm, handedness:handed, thumbTip:{x:tx,y:ty}, indexTip:{x:cx,y:cy}, handScale, ratio});
+              // update states
+              handStates[handed].cursor={x:cx,y:cy}; handStates[handed].thumb={x:tx,y:ty};
+              handlePinch(handed, isPinch, cx, cy);
+            }
+            const focusEl=document.getElementById('handFocus');
+            if(focusEl) focusEl.classList.toggle('active', hands.length>0);
+          }
+        });
+        // Use camera utils to feed video
+        const camScript=document.createElement('script');
+        camScript.src='https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js';
+        camScript.onload=()=>{
+          const Camera=(window as any).Camera;
+          const cam=new Camera(video, {
+            onFrame: async ()=>{ await handsInst.send({image: video}); },
+            width:640, height:480
+          });
+          cam.start();
+          handLandmarker={ isClassic:true, handsInst };
+          loadingMessage.classList.add('hidden');
+          showToast('✋ Hands tracking (classic) ready', '#00e676');
+          resolve(null);
+        };
+        camScript.onerror=reject;
+        document.head.appendChild(camScript);
+      }catch(e){ reject(e); }
+    };
+    s.onerror=reject;
+    document.head.appendChild(s);
+  });
 }
 
 function showTapFeedback(x,y, count){
@@ -744,13 +1140,14 @@ function dispatchTap(handLabel, count, x, y){
 function handlePinch(handLabel, isPinchingNow, cursorX, cursorY){
   const state = handStates[handLabel];
   if(!state) return;
-  // focused zone: 18% margin all sides (matches CSS 62% width)
+  // Track both thumb+index — allow full screen (no focus block, just update)
+  // Very permissive edge margin (4%) so gestures work edge-to-edge
   const nx = cursorX / canvas.width, ny = cursorY / canvas.height;
-  const inFocus = nx > 0.12 && nx < 0.88 && ny > 0.10 && ny < 0.88;
-  // Still update cursor for visual, but don't trigger tap if far outside focus
+  const inBounds = nx > 0.02 && nx < 0.98 && ny > 0.02 && ny < 0.98;
+  // Always update cursor & thumb for visual feedback, even at edges
   state.cursor.x=cursorX; state.cursor.y=cursorY;
-  if(!inFocus && handLabel!=='Mouse'){
-    // show but don't count as tap — just track movement
+  // Only ignore if wildly out of canvas (near 0,0 default before tracking)
+  if(!inBounds && handLabel!=='Mouse' && state.lastTapTime===0 && Math.hypot(cursorX, cursorY)<40){
     return;
   }
   if(isPinchingNow !== state.isPinching){
@@ -985,62 +1382,82 @@ function updateHoverStates(gx,gy){
 
 function predictLoop(){
   const now = performance.now();
-  if(now - lastPredictTime >= PREDICT_INTERVAL && video.readyState >= 2 && handLandmarker){
-    if(video.currentTime !== lastVideoTime){
-      lastPredictTime = now;
-      lastVideoTime = video.currentTime;
+  if(!handLandmarker || video.readyState < 2){
+    requestAnimationFrame(predictLoop);
+    return;
+  }
+  // Classic fallback: hands populated via onResults callback from Camera
+  if(handLandmarker.isClassic){
+    const hasFocusedHand = hands.length>0;
+    const focusEl=document.getElementById('handFocus');
+    if(focusEl) focusEl.classList.toggle('active', hasFocusedHand);
+    if(now - lastHandDomUpdate > 100){
+      lastHandDomUpdate=now;
+      const c=hands.length;
       try{
-        const results = handLandmarker.detectForVideo(video, now);
-        hands = [];
-        let hasFocusedHand = false;
-        if(results.landmarks && results.landmarks.length){
-          for(let i=0;i<results.landmarks.length;i++){
-            const lm = results.landmarks[i];
-            const handed = (results.handednesses && results.handednesses[i] && results.handednesses[i][0] && results.handednesses[i][0].categoryName) || (i===0?'Right':'Left');
-            // Focus filter: only hands with index tip inside central 70%x65% zone count as focused
-            const ix = 1 - lm[8].x; const iy = lm[8].y;
-            const inFocus = ix > 0.15 && ix < 0.85 && iy > 0.15 && iy < 0.85;
-            if(inFocus) hasFocusedHand = true;
-            hands.push({landmarks:lm, handedness:handed, inFocus});
-            const thumb = lm[4]; const index = lm[8];
-            const d = Math.hypot(thumb.x - index.x, thumb.y - index.y);
-            // hysteresis: need tighter to start, looser to release
-            const state = handStates[handed];
-            const thresh = state && state.isPinching ? PINCH_RELEASE_THRESH : PINCH_THRESH;
-            const isPinch = d < thresh;
-            const cx = (1 - index.x) * canvas.width;
-            const cy = index.y * canvas.height;
-            // Smoothing: lerp cursor for stable tap position
-            if(state){
-              const lerp = 0.45;
-              state.cursor.x = state.cursor.x*lerp + cx*(1-lerp);
-              state.cursor.y = state.cursor.y*lerp + cy*(1-lerp);
-              handlePinch(handed, isPinch, state.cursor.x, state.cursor.y);
-            } else {
-              handlePinch(handed, isPinch, cx, cy);
-            }
-          }
-        }
-        // Visual focus cue
-        const focusEl = document.getElementById('handFocus');
-        if(focusEl) focusEl.classList.toggle('active', hasFocusedHand);
-
-        // throttle DOM updates to ~10fps
-        if(now - lastHandDomUpdate > 100){
-          lastHandDomUpdate = now;
-          const c = hands.length;
-          detectedHandsEl.textContent = `${c} ${c===1?'hand':'hands'}`;
-          const hasLeft = hands.some(h=>h.handedness==='Left');
-          const hasRight = hands.some(h=>h.handedness==='Right');
-          leftBadge.textContent = hasLeft ? 'LEFT HAND — tracking ✓' : 'LEFT HAND — waiting';
-          leftBadge.classList.toggle('active', hasLeft);
-          rightBadge.textContent = hasRight ? 'RIGHT HAND — tracking ✓' : 'RIGHT HAND — waiting';
-          rightBadge.classList.toggle('active', hasRight);
-        }
-      }catch(e){
-        // detection error skip frame
-      }
+        detectedHandsEl.textContent=`${c} ${c===1?'hand':'hands'}`;
+        const hasLeft=hands.some(h=>h.handedness==='Left');
+        const hasRight=hands.some(h=>h.handedness==='Right');
+        leftBadge.textContent=hasLeft?'LEFT HAND — tracking ✓':'LEFT HAND — waiting';
+        leftBadge.classList.toggle('active', hasLeft);
+        rightBadge.textContent=hasRight?'RIGHT HAND — tracking ✓':'RIGHT HAND — waiting';
+        rightBadge.classList.toggle('active', hasRight);
+      }catch{}
     }
+    requestAnimationFrame(predictLoop);
+    return;
+  }
+  // Tasks Vision: 60fps smooth with OneEuro
+  if(now - lastPredictTime >= PREDICT_INTERVAL && video.currentTime !== lastVideoTime){
+    lastPredictTime=now;
+    lastVideoTime=video.currentTime;
+    try{
+      const results=handLandmarker.detectForVideo(video, now);
+      hands=[];
+      let hasFocusedHand=false;
+      if(results.landmarks && results.landmarks.length){
+        for(let i=0;i<results.landmarks.length;i++){
+          const lm=results.landmarks[i];
+          const handed=(results.handednesses && results.handednesses[i] && results.handednesses[i][0] && results.handednesses[i][0].categoryName) || (i===0?'Right':'Left');
+          const thumb=lm[4], index=lm[8], wrist=lm[0], middleTip=lm[12];
+          const handScale=Math.hypot(middleTip.x-wrist.x, middleTip.y-wrist.y) || 0.14;
+          const state=handStates[handed];
+          if(state) state.handScale=handScale;
+          const sm=smoothHandPos(handed, {x:thumb.x,y:thumb.y}, {x:index.x,y:index.y}, now);
+          const pinchDist=Math.hypot(sm.index.x-sm.thumb.x, sm.index.y-sm.thumb.y);
+          const ratio=handScale>0.02 ? pinchDist/handScale : 1;
+          const thresh=state && state.isPinching ? PINCH_OFF_RATIO : PINCH_ON_RATIO;
+          const isPinchRaw=ratio < thresh;
+          if(isPinchRaw){ state.pinchFrames=(state.pinchFrames||0)+1; state.releaseFrames=0; } else { state.releaseFrames=(state.releaseFrames||0)+1; state.pinchFrames=0; }
+          const isPinch= state.isPinching ? state.releaseFrames<2 : state.pinchFrames>=2;
+          const cx=(1-sm.index.x)*canvas.width;
+          const cy=sm.index.y*canvas.height;
+          const tx=(1-sm.thumb.x)*canvas.width;
+          const ty=sm.thumb.y*canvas.height;
+          state.thumb.x=tx; state.thumb.y=ty;
+          const ix=1-sm.index.x, iy=sm.index.y;
+          const inFocus=ix>0.06 && ix<0.94 && iy>0.06 && iy<0.94;
+          if(inFocus) hasFocusedHand=true;
+          hands.push({landmarks:lm, handedness:handed, inFocus, thumbTip:{x:tx,y:ty}, indexTip:{x:cx,y:cy}, handScale, ratio, isPinching:isPinch, smoothed:{thumb:sm.thumb, index:sm.index}});
+          handlePinch(handed, isPinch, cx, cy);
+        }
+      }
+      const focusEl=document.getElementById('handFocus');
+      if(focusEl) focusEl.classList.toggle('active', hasFocusedHand);
+      if(now - lastHandDomUpdate > 100){
+        lastHandDomUpdate=now;
+        const c=hands.length;
+        try{
+          detectedHandsEl.textContent=`${c} ${c===1?'hand':'hands'}`;
+          const hasLeft=hands.some(h=>h.handedness==='Left');
+          const hasRight=hands.some(h=>h.handedness==='Right');
+          leftBadge.textContent=hasLeft?'LEFT HAND — tracking ✓':'LEFT HAND — waiting';
+          leftBadge.classList.toggle('active', hasLeft);
+          rightBadge.textContent=hasRight?'RIGHT HAND — tracking ✓':'RIGHT HAND — waiting';
+          rightBadge.classList.toggle('active', hasRight);
+        }catch{}
+      }
+    }catch(e){}
   }
   requestAnimationFrame(predictLoop);
 }
@@ -1127,11 +1544,45 @@ function renderLoop(now){
     ctx.fillText('Tap to enable camera • Click/DblClick • 3-Finger to switch • Wheel to cycle', canvas.width/2, 84);
   }
 
+  // ===== FULLSCREEN COLORED FLASH (immersive) =====
   if(flashAlpha>0){
-    // cheap flash — single rect, no blending
-    ctx.fillStyle = `rgba(255, 244, 180, ${flashAlpha})`;
+    ctx.save();
+    const fade = flashAlpha;
+    // radial gradient flash centered on last burst or screen center
+    const grad = ctx.createRadialGradient(canvas.width/2, canvas.height*0.45, 0, canvas.width/2, canvas.height*0.45, Math.max(canvas.width, canvas.height)*0.85);
+    // parse flashColor to rgba
+    const fc = flashColor || '#ffd60a';
+    // convert hex to rgb
+    const hexToRgb=(h)=>{ const r=parseInt(h.slice(1,3),16), g=parseInt(h.slice(3,5),16), b=parseInt(h.slice(5,7),16); return `${r},${g},${b}`; };
+    let rgb='255,214,10';
+    try{ if(fc.startsWith('#')) rgb=hexToRgb(fc); }catch{}
+    grad.addColorStop(0, `rgba(${rgb},${fade*0.95})`);
+    grad.addColorStop(0.25, `rgba(${rgb},${fade*0.45})`);
+    grad.addColorStop(0.6, `rgba(${rgb},${fade*0.12})`);
+    grad.addColorStop(1, `rgba(${rgb},0)`);
+    ctx.fillStyle=grad;
+    ctx.globalCompositeOperation='screen';
     ctx.fillRect(0,0,canvas.width,canvas.height);
-    flashAlpha = Math.max(0, flashAlpha - dt*4.2);
+    // also subtle white core bloom
+    ctx.globalAlpha=fade*0.45;
+    ctx.fillStyle='rgba(255,255,255,'+fade*0.35+')';
+    ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height*0.38, 120+fade*160, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+    flashAlpha = Math.max(0, flashAlpha - dt*3.8);
+  }
+  // screen washes - fullscreen color tint overlays (DOM handled, canvas extra)
+  for(let i=screenWashes.length-1;i>=0;i--){
+    const w=screenWashes[i];
+    w.life+=dt;
+    if(w.life>=w.maxLife){ screenWashes.splice(i,1); continue; }
+    const prog=w.life/w.maxLife;
+    const alpha=w.alpha*(1-prog);
+    ctx.save();
+    ctx.globalAlpha=alpha;
+    ctx.fillStyle=w.color;
+    ctx.globalCompositeOperation='screen';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.restore();
   }
   // Placed crackers — cull if offscreen (fast)
   for(let pi=0; pi<placedCrackers.length; pi++){
@@ -1214,20 +1665,55 @@ function renderLoop(now){
     }
     ctx.globalAlpha = alpha;
     ctx.fillStyle = p.color;
-    if(p.sparkle){
-      ctx.shadowBlur=8; ctx.shadowColor=p.color;
+    if((p as any).star){
+      // star shape with twinkle
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate((p as any).rot || 0);
+      const tw = (p as any).twinkle ? 0.7+Math.sin(now*0.008 + p.x)*0.3 : 1;
+      ctx.globalAlpha=alpha*tw;
+      ctx.shadowBlur=10; ctx.shadowColor=p.color;
+      // 4-point star
+      const s=p.size* (p.maxLife? alpha:1);
       ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size * alpha + 0.5, 0, Math.PI*2);
+      for(let k=0;k<4;k++){
+        const a=k*Math.PI/2;
+        ctx.moveTo(Math.cos(a)*s, Math.sin(a)*s);
+        ctx.lineTo(Math.cos(a+Math.PI/4)*s*0.5, Math.sin(a+Math.PI/4)*s*0.5);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.shadowBlur=0;
+      ctx.restore();
+      if(Math.random()<0.15){
+        ctx.strokeStyle=p.color; ctx.lineWidth=0.8; ctx.globalAlpha=alpha*0.6;
+        ctx.beginPath(); ctx.moveTo(p.x-4,p.y); ctx.lineTo(p.x+4,p.y); ctx.moveTo(p.x,p.y-4); ctx.lineTo(p.x,p.y+4); ctx.stroke();
+      }
+    } else if((p as any).willow){
+      // willow trailing spark with glow tail
+      ctx.shadowBlur=8; ctx.shadowColor=p.color;
+      ctx.beginPath(); ctx.arc(p.x,p.y, p.size*alpha+0.4, 0, Math.PI*2); ctx.fill();
+      ctx.shadowBlur=0;
+      // tail
+      ctx.globalAlpha=alpha*0.45; ctx.strokeStyle=p.color; ctx.lineWidth=1.2;
+      ctx.beginPath(); ctx.moveTo(p.x - p.vx*0.8, p.y - p.vy*0.8); ctx.lineTo(p.x, p.y); ctx.stroke();
+    } else if(p.sparkle){
+      ctx.shadowBlur=12; ctx.shadowColor=p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * alpha + 0.8, 0, Math.PI*2);
       ctx.fill();
       ctx.shadowBlur=0;
-      if(Math.random()<0.3){
+      if(Math.random()<0.35){
         ctx.strokeStyle=p.color;
         ctx.lineWidth=1;
         ctx.beginPath();
-        ctx.moveTo(p.x-3,p.y); ctx.lineTo(p.x+3,p.y);
-        ctx.moveTo(p.x,p.y-3); ctx.lineTo(p.x,p.y+3);
+        ctx.moveTo(p.x-4,p.y); ctx.lineTo(p.x+4,p.y);
+        ctx.moveTo(p.x,p.y-4); ctx.lineTo(p.x,p.y+4);
         ctx.stroke();
       }
+    } else if((p as any).gentle){
+      ctx.shadowBlur=4; ctx.shadowColor=p.color;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size*0.9+0.5, 0, Math.PI*2); ctx.fill();
+      ctx.shadowBlur=0;
     } else {
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
@@ -1256,22 +1742,200 @@ function renderLoop(now){
   }
   ctx.restore();
 
-  // Hand landmarks — minimal lightweight (only index fingertip + pinch ring)
+  // ===== IMMERSIVE OVERLAYS: Light streaks, Rangoli, Ember Rain, Confetti, Ambient =====
+  // Light streaks (rocket trails that streak across screen)
+  ctx.save();
+  for(let i=lightStreaks.length-1;i>=0;i--){
+    const s=lightStreaks[i];
+    s.life+=dt;
+    if(s.life>=s.maxLife){ lightStreaks.splice(i,1); continue; }
+    const prog=s.life/s.maxLife;
+    const alpha=(1-prog)*0.9;
+    const cx=s.x+(s.tx-s.x)*prog;
+    const cy=s.y+(s.ty-s.y)*prog;
+    // trail
+    const grad=ctx.createLinearGradient(s.x, s.y, cx, cy);
+    grad.addColorStop(0,'rgba(255,214,10,0)');
+    grad.addColorStop(0.5, s.color);
+    grad.addColorStop(1,'#ffffff');
+    ctx.strokeStyle=grad; ctx.lineWidth=3; ctx.globalAlpha=alpha; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(cx, cy); ctx.stroke();
+    // head glow
+    ctx.shadowBlur=14; ctx.shadowColor=s.color; ctx.fillStyle='#ffffff'; ctx.globalAlpha=alpha;
+    ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur=0;
+  }
+  ctx.restore();
+
+  // Rangoli bursts - expanding mandala rings that light up floor
+  ctx.save();
+  for(let i=rangoliBursts.length-1;i>=0;i--){
+    const r=rangoliBursts[i];
+    r.life+=dt;
+    if(r.life>=r.maxLife){ rangoliBursts.splice(i,1); continue; }
+    const prog=r.life/r.maxLife;
+    const rad=r.r + (r.maxR - r.r)*prog;
+    const alpha=(1-prog)*0.65;
+    ctx.globalAlpha=alpha;
+    ctx.strokeStyle=r.color; ctx.lineWidth=2*(1-prog)+0.8;
+    // outer ring
+    ctx.beginPath(); ctx.arc(r.x, r.y, rad, 0, Math.PI*2); ctx.stroke();
+    // inner decorative ring
+    ctx.globalAlpha=alpha*0.5; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(r.x, r.y, rad*0.65, 0, Math.PI*2); ctx.stroke();
+    // 8-dot rangoli pattern
+    ctx.globalAlpha=alpha; ctx.fillStyle=r.color;
+    for(let k=0;k<8;k++){
+      const a=k*Math.PI/4 + prog*Math.PI*0.5;
+      const dx=r.x+Math.cos(a)*rad*0.52;
+      const dy=r.y+Math.sin(a)*rad*0.52;
+      ctx.beginPath(); ctx.arc(dx, dy, 2.5, 0, Math.PI*2); ctx.fill();
+    }
+  }
+  ctx.restore();
+
+  // Ember rain - floating warm lights across whole screen
+  ctx.save();
+  for(let i=emberRain.length-1;i>=0;i--){
+    const e=emberRain[i];
+    e.life-=dt;
+    if(e.life<=0){ emberRain.splice(i,1); continue; }
+    e.x+=e.vx*60*dt; e.y+=e.vy*60*dt;
+    e.vx+= (Math.random()-0.5)*0.02;
+    const alpha=e.life/e.maxLife;
+    ctx.globalAlpha=alpha*0.95;
+    if(e.glow){
+      ctx.shadowBlur=14; ctx.shadowColor=e.color;
+    } else {
+      ctx.shadowBlur=6; ctx.shadowColor=e.color;
+    }
+    ctx.fillStyle=e.color;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.size* (e.glow? 1.2:1), 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+    // subtle halo
+    ctx.globalAlpha=alpha*0.25; ctx.fillStyle=e.color;
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.size*2.2, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+
+  // Confetti rain - colorful falling rectangles
+  ctx.save();
+  for(let i=confettiPieces.length-1;i>=0;i--){
+    const c=confettiPieces[i];
+    c.life-=dt;
+    if(c.life<=0){ confettiPieces.splice(i,1); continue; }
+    c.x+=c.vx*60*dt; c.y+=c.vy*60*dt;
+    c.vy+=c.gravity*60*dt;
+    c.vx*=c.drag; c.vy*=c.drag;
+    c.rot+=c.rotSpeed*60*dt;
+    const alpha=c.life/c.maxLife;
+    ctx.globalAlpha=alpha;
+    ctx.fillStyle=c.color;
+    ctx.translate(c.x, c.y); ctx.rotate(c.rot);
+    ctx.fillRect(-c.size/2, -c.size/2, c.size, c.size*0.65);
+    ctx.setTransform(1,0,0,1,0,0);
+  }
+  ctx.restore();
+
+  // Ambient bottom diyas glow - subtle flickering row
+  if(frameCounter % 2 === 0){
+    ctx.save();
+    ctx.globalAlpha=0.35+Math.sin(now*0.003)*0.08;
+    for(let i=0;i<7;i++){
+      const x=90 + i*135 + Math.sin(now*0.0012 + i)*6;
+      const y=canvas.height-22;
+      // diya base glow
+      const grad=ctx.createRadialGradient(x,y,0,x,y,34);
+      grad.addColorStop(0,'rgba(255,154,0,0.45)');
+      grad.addColorStop(0.4,'rgba(255,214,10,0.18)');
+      grad.addColorStop(1,'rgba(255,154,0,0)');
+      ctx.fillStyle=grad;
+      ctx.beginPath(); ctx.arc(x,y,34,0,Math.PI*2); ctx.fill();
+      // flame
+      ctx.globalAlpha=0.9+Math.random()*0.1;
+      ctx.fillStyle='#ffd60a';
+      ctx.beginPath(); ctx.ellipse(x, y-8, 3.5, 7, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle='#ff6e40'; ctx.beginPath(); ctx.ellipse(x, y-8, 1.8, 4, 0, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // Hand landmarks — PRO: thumb+index both tracked, smooth OneEuro, adaptive pinch glow
   if(hands.length){
     for(let hi=0; hi<hands.length; hi++){
       const h=hands[hi];
-      const lm=h.landmarks;
       ctx.save();
+      ctx.globalAlpha=0.95;
+      // Use smoothed tips if available, else fallback to landmarks
+      let cx, cy, tx, ty, isPinching, ratio;
+      if(h.indexTip && h.thumbTip){
+        cx=h.indexTip.x; cy=h.indexTip.y; tx=h.thumbTip.x; ty=h.thumbTip.y;
+        isPinching=!!h.isPinching; ratio=h.ratio||1;
+      } else {
+        const lm=h.landmarks;
+        const idx=lm[8], th=lm[4];
+        cx=(1-idx.x)*canvas.width; cy=idx.y*canvas.height;
+        tx=(1-th.x)*canvas.width; ty=th.y*canvas.height;
+        isPinching=Math.hypot(th.x-idx.x, th.y-idx.y) < 0.05;
+        ratio=1;
+      }
+      const midX=(cx+tx)/2, midY=(cy+ty)/2;
+      const dist=Math.hypot(cx-tx, cy-ty);
+      // Line between thumb & index — color encodes pinch progress
+      const pinchT=Math.max(0, Math.min(1, (0.42 - (h.ratio||ratio))/0.14)); // 0=open,1=pinched
+      const lineColor=isPinching ? '#ffd60a' : `rgba(255,255,255,${0.55+pinchT*0.3})`;
+      ctx.strokeStyle=lineColor;
+      ctx.lineWidth=isPinching?2.8:1.6;
+      ctx.globalAlpha=isPinching?0.95:0.55;
+      ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(cx,cy); ctx.stroke();
+      // Thumb tip - smaller, teal hint
+      ctx.globalAlpha=0.92;
+      ctx.fillStyle=isPinching ? '#ffd60a' : '#69f0ae';
+      ctx.strokeStyle=isPinching ? '#ffd60a' : 'rgba(255,255,255,0.85)';
+      ctx.lineWidth=1.6;
+      ctx.beginPath(); ctx.arc(tx,ty, isPinching?6:7, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(tx,ty, isPinching?3.2:3.8, 0, Math.PI*2); ctx.fill();
+      // Index tip - main cursor, larger, glows on pinch
+      if(isPinching){
+        ctx.shadowBlur=18; ctx.shadowColor='#ffd60a';
+        ctx.strokeStyle='#ffd60a'; ctx.lineWidth=2.6;
+        ctx.beginPath(); ctx.arc(cx,cy, 13, 0, Math.PI*2); ctx.stroke();
+        ctx.shadowBlur=0;
+      }
+      ctx.strokeStyle=isPinching ? '#ffd60a' : 'rgba(255,255,255,0.9)';
+      ctx.lineWidth=isPinching?2.4:1.8;
+      ctx.beginPath(); ctx.arc(cx,cy, isPinching?11:13, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle=isPinching ? '#ffd60a' : '#ffffff';
+      ctx.beginPath(); ctx.arc(cx,cy, isPinching?5.8:4.2, 0, Math.PI*2); ctx.fill();
+      // Pinch midpoint glow
+      if(isPinching){
+        ctx.globalAlpha=0.9;
+        ctx.fillStyle='#ffd60a';
+        ctx.shadowBlur=12; ctx.shadowColor='#ffd60a';
+        ctx.beginPath(); ctx.arc(midX, midY, 4, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur=0;
+        // pulse ring
+        ctx.globalAlpha=0.45; ctx.strokeStyle='#ffd60a'; ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.arc(midX, midY, 11+Math.sin(performance.now()*0.012)*2, 0, Math.PI*2); ctx.stroke();
+      } else if(dist < 80){
+        // faint midpoint dot when fingers near
+        ctx.globalAlpha=0.35; ctx.fillStyle='rgba(255,255,255,0.9)';
+        ctx.beginPath(); ctx.arc(midX, midY, 2, 0, Math.PI*2); ctx.fill();
+      }
+      // Hand label with color
       ctx.globalAlpha=0.9;
-      const idx=lm[8]; const th=lm[4];
-      const cx=(1 - idx.x)*canvas.width, cy=idx.y*canvas.height;
-      const isPinching = Math.hypot(th.x - idx.x, th.y - idx.y) < PINCH_THRESH;
-      // single fingertip glass ring
-      ctx.strokeStyle=isPinching? '#ffd60a' : 'rgba(255,255,255,0.75)';
-      ctx.lineWidth=isPinching?2.2:1.4;
-      ctx.beginPath(); ctx.arc(cx,cy, isPinching? 11:14,0,Math.PI*2); ctx.stroke();
-      ctx.fillStyle=isPinching?'#ffd60a':'#fff';
-      ctx.beginPath(); ctx.arc(cx,cy, isPinching?5.5:3.5,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle= h.handedness==='Left' ? '#00e676' : '#ffd60a';
+      ctx.font='700 9px Poppins, sans-serif'; ctx.textAlign='center';
+      const label = (h.handedness||'HAND').toUpperCase();
+      ctx.fillText(label, cx, cy-22);
+      // Optional: faint skeleton (wrist to index) for pro feel
+      if(h.landmarks){
+        const lm=h.landmarks;
+        const wrist=lm[0], idxMCP=lm[5], pip=lm[6];
+        const wx=(1-wrist.x)*canvas.width, wy=wrist.y*canvas.height;
+        const mx=(1-idxMCP.x)*canvas.width, my=idxMCP.y*canvas.height;
+        ctx.globalAlpha=0.18; ctx.strokeStyle='#ffffff'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.moveTo(wx,wy); ctx.lineTo(mx,my); ctx.lineTo(cx,cy); ctx.stroke();
+      }
       ctx.restore();
     }
   }
@@ -1426,6 +2090,7 @@ canvas.addEventListener('contextmenu', e=> e.preventDefault());
 preloadRealSounds();
 preloadCrackerImages();
 setupVolumeControl();
+initFestiveLights();
 renderShelf();
 renderArsenal();
 updateActiveUI();

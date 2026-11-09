@@ -29,6 +29,13 @@ export default function Page() {
       <div className="stage-wrap" id="stageWrap">
         <video id="video" autoPlay muted playsInline></video>
         <canvas id="displayCanvas" width={960} height={540}></canvas>
+        {/* Immersive fullscreen effect layers */}
+        <div className="color-wash-overlay" id="colorWash"></div>
+        <div className="ambient-glow"></div>
+        <div className="rangoli-overlay"></div>
+        <div className="screen-glow-flash" id="screenGlow"></div>
+        <div className="vignette-flash" id="vignetteFlash"></div>
+        <div className="festive-string" id="festiveString" aria-hidden="true"></div>
 
         {/* Minimal top glass — only active + sound + fullscreen */}
         <div className="top-glass">
