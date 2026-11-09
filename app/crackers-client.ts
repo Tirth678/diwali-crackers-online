@@ -299,7 +299,7 @@ function renderShelf(){
     div.dataset.id=t.id;
     div.innerHTML=`
       <div class="hover-ring"></div>
-      <div class="cracker-icon" style="background:${t.color}18; border:1px solid ${t.color}30; overflow:hidden"><img loading="lazy" decoding="async" src="${(t as any).image}" alt="${t.name}" style="width:100%;height:100%;object-fit:contain; border-radius:8px" onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size:22px\\'>${t.emoji}</span>'" /></div>
+      <div class="cracker-icon"><img loading="lazy" decoding="async" src="${(t as any).image}" alt="${t.name}" onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size:28px\\'>${t.emoji}</span>'" /></div>
       <div class="cracker-name">${t.name}</div>
       <div class="cracker-desc">${t.desc}</div>
       <div class="cracker-meta">
@@ -1141,25 +1141,27 @@ function renderLoop(now){
     const t = CRACKER_TYPES.find(c=>c.id===p.type);
     ctx.save();
     ctx.translate(p.x, p.y + bob);
-    ctx.fillStyle=t.color+'30';
+    // Subtle ground shadow only — no colored halo (production clean)
+    ctx.fillStyle='rgba(0,0,0,0.28)';
     ctx.beginPath();
-    ctx.arc(0,0,34,0,Math.PI*2);
+    ctx.ellipse(0,22,20,7,0,0,Math.PI*2);
     ctx.fill();
+    // Gentle sparkle indicator for newly placed
     if(((now - p.placedAt)/1000)%1.0 <0.5){
-      ctx.fillStyle='#ffd60a';
+      ctx.fillStyle='rgba(255,214,10,0.95)';
+      ctx.shadowBlur=6; ctx.shadowColor='#ffd60a';
       ctx.beginPath();
-      ctx.arc(6,-14, 3+Math.random()*2,0,Math.PI*2);
+      ctx.arc(8,-16, 2.5+Math.random()*1.5,0,Math.PI*2);
       ctx.fill();
+      ctx.shadowBlur=0;
     }
-    ctx.fillStyle='rgba(0,0,0,0.35)';
-    ctx.beginPath();
-    ctx.ellipse(0,18,18,6,0,0,Math.PI*2);
-    ctx.fill();
-    // Draw real cracker image if loaded, else fallback to emoji
+    // Draw real cracker image if loaded, else fallback to emoji — larger, clean, with shadow
     const img = crackerImages[p.type];
     if(img && img.complete && img.naturalWidth>0){
-      // draw image centered 36x36
-      try{ ctx.drawImage(img, -18, -18, 36, 36); }catch(e){ ctx.fillText(t.emoji, 0, 0); }
+      // larger 44x44 with natural transparent bg
+      ctx.shadowBlur=10; ctx.shadowColor='rgba(0,0,0,0.45)'; ctx.shadowOffsetY=4;
+      try{ ctx.drawImage(img, -22, -22, 44, 44); }catch(e){ ctx.fillText(t.emoji, 0, 0); }
+      ctx.shadowBlur=0; ctx.shadowOffsetY=0;
     } else {
       ctx.font='28px serif';
       ctx.textAlign='center';
