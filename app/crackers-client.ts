@@ -661,19 +661,21 @@ let handStates = {
   Right:{ isPinching:false, pinchStart:0, cursor:{x:0,y:0}, tapCount:0, tapTimer:null, lastTapTime:0, lastTapX:0, lastTapY:0 },
   Mouse:{ isPinching:false, pinchStart:0, cursor:{x: canvas.width/2, y: canvas.height/2 }, tapCount:0, tapTimer:null, lastTapTime:0, lastTapX:0, lastTapY:0 }
 };
-const PINCH_THRESH = 0.05;
+const PINCH_THRESH = 0.068; // focused pinch threshold
+const PINCH_RELEASE_THRESH = 0.082; // hysteresis
 // --- Improved tap system ---
-const TAP_TIMEOUT = 480; // ms wait to decide single/double/triple (human triple ~800ms)
-const HOLD_MAX_MS = 520; // max press duration to count as tap (allow slower taps)
-const TAP_MOVE_TOL = 42; // px tolerance between taps
+const TAP_TIMEOUT = 300; // snappy: 300ms for single, triple still works (2 gaps = 600ms total)
+const HOLD_MAX_MS = 380; // crisp tap window
+const TAP_MOVE_TOL = 28;
 const THREE_FINGER_HOLD_MAX = 500;
+let lastTapVisual = 0;
 let threeFingerState = { active:false, startTime:0, startX:0, startY:0, moved:false };
 let lastFpsUpdate = 0;
 let isLowPerf = true; // lightweight default
 try{ isLowPerf = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 6) || window.innerWidth < 900 || true; }catch{}
 let particleBudget = 280; // ultra-light
 let lastPredictTime = 0;
-const PREDICT_INTERVAL = 110; // ~9fps hand detection for lightweight (was 45/66)
+let PREDICT_INTERVAL = 65; // focused ~15fps precise
 let handCache = { count:0, text:'0 hands' };
 let lastHandDomUpdate = 0;
 
@@ -695,9 +697,9 @@ async function initHandTracking(){
       },
       runningMode: 'VIDEO',
       numHands: 2,
-      minHandDetectionConfidence: 0.5,
-      minHandPresenceConfidence: 0.5,
-      minTrackingConfidence: 0.5
+      minHandDetectionConfidence: 0.65,
+      minHandPresenceConfidence: 0.65,
+      minTrackingConfidence: 0.62
     });
     loadingMessage.classList.add('hidden');
     showToast('Hand tracking ready — both hands tracked!', '#00e676');
@@ -710,19 +712,29 @@ async function initHandTracking(){
   }
 }
 
+function showTapFeedback(x,y, count){
+  if(performance.now() - lastTapVisual < 30) return;
+  lastTapVisual = performance.now();
+  const c = count || 1;
+  const col = c===1 ? 'rgba(255,214,10,0.9)' : c===2 ? 'rgba(0,230,118,0.9)' : 'rgba(255,64,129,0.95)';
+  particles.push({x,y, vx:0, vy:-0.8, life:0.35, maxLife:0.35, size: c===1?8:c===2?12:16, color:col, flash:true});
+  try{ if(navigator.vibrate) navigator.vibrate(c===1?20:c===2?35:55); }catch{}
+}
 function queueTap(handLabel, x, y){
   const s=handStates[handLabel];
   if(!s) return;
   const now=performance.now();
-  // distance from last tap resets chain
   const dist = Math.hypot((s.lastTapX||x)-x, (s.lastTapY||y)-y);
-  if(dist > 95 && s.tapCount>0){ // far away -> flush previous chain first
+  // If far away, flush previous pending as its own gesture
+  if(dist > 90 && s.tapCount>0){
     if(s.tapTimer){ clearTimeout(s.tapTimer); dispatchTap(handLabel, s.tapCount, s.lastTapX, s.lastTapY); s.tapCount=0; s.tapTimer=null; }
   }
   s.tapCount = (s.tapCount||0)+1;
   s.lastTapTime=now; s.lastTapX=x; s.lastTapY=y;
+  showTapFeedback(x,y, s.tapCount);
   if(s.tapTimer) clearTimeout(s.tapTimer);
-  s.tapTimer=setTimeout(()=>{ dispatchTap(handLabel, s.tapCount, s.lastTapX, s.lastTapY); s.tapCount=0; s.tapTimer=null; }, TAP_TIMEOUT);
+  // Shorter timeout for snappy single, but allow triple within 2*timeout
+  s.tapTimer=setTimeout(()=>{ const c=s.tapCount; s.tapCount=0; s.tapTimer=null; dispatchTap(handLabel, c, s.lastTapX, s.lastTapY); }, TAP_TIMEOUT);
 }
 function dispatchTap(handLabel, count, x, y){
   if(count===1) onSingleTap(handLabel, x, y);
@@ -732,7 +744,15 @@ function dispatchTap(handLabel, count, x, y){
 function handlePinch(handLabel, isPinchingNow, cursorX, cursorY){
   const state = handStates[handLabel];
   if(!state) return;
+  // focused zone: 18% margin all sides (matches CSS 62% width)
+  const nx = cursorX / canvas.width, ny = cursorY / canvas.height;
+  const inFocus = nx > 0.12 && nx < 0.88 && ny > 0.10 && ny < 0.88;
+  // Still update cursor for visual, but don't trigger tap if far outside focus
   state.cursor.x=cursorX; state.cursor.y=cursorY;
+  if(!inFocus && handLabel!=='Mouse'){
+    // show but don't count as tap — just track movement
+    return;
+  }
   if(isPinchingNow !== state.isPinching){
     if(isPinchingNow){
       state.isPinching=true;
@@ -965,7 +985,6 @@ function updateHoverStates(gx,gy){
 
 function predictLoop(){
   const now = performance.now();
-  // throttle hand detection for perf
   if(now - lastPredictTime >= PREDICT_INTERVAL && video.readyState >= 2 && handLandmarker){
     if(video.currentTime !== lastVideoTime){
       lastPredictTime = now;
@@ -973,20 +992,39 @@ function predictLoop(){
       try{
         const results = handLandmarker.detectForVideo(video, now);
         hands = [];
+        let hasFocusedHand = false;
         if(results.landmarks && results.landmarks.length){
           for(let i=0;i<results.landmarks.length;i++){
             const lm = results.landmarks[i];
             const handed = (results.handednesses && results.handednesses[i] && results.handednesses[i][0] && results.handednesses[i][0].categoryName) || (i===0?'Right':'Left');
-            hands.push({landmarks:lm, handedness:handed});
-            const thumb = lm[4];
-            const index = lm[8];
+            // Focus filter: only hands with index tip inside central 70%x65% zone count as focused
+            const ix = 1 - lm[8].x; const iy = lm[8].y;
+            const inFocus = ix > 0.15 && ix < 0.85 && iy > 0.15 && iy < 0.85;
+            if(inFocus) hasFocusedHand = true;
+            hands.push({landmarks:lm, handedness:handed, inFocus});
+            const thumb = lm[4]; const index = lm[8];
             const d = Math.hypot(thumb.x - index.x, thumb.y - index.y);
-            const isPinch = d < PINCH_THRESH;
+            // hysteresis: need tighter to start, looser to release
+            const state = handStates[handed];
+            const thresh = state && state.isPinching ? PINCH_RELEASE_THRESH : PINCH_THRESH;
+            const isPinch = d < thresh;
             const cx = (1 - index.x) * canvas.width;
             const cy = index.y * canvas.height;
-            handlePinch(handed, isPinch, cx, cy);
+            // Smoothing: lerp cursor for stable tap position
+            if(state){
+              const lerp = 0.45;
+              state.cursor.x = state.cursor.x*lerp + cx*(1-lerp);
+              state.cursor.y = state.cursor.y*lerp + cy*(1-lerp);
+              handlePinch(handed, isPinch, state.cursor.x, state.cursor.y);
+            } else {
+              handlePinch(handed, isPinch, cx, cy);
+            }
           }
         }
+        // Visual focus cue
+        const focusEl = document.getElementById('handFocus');
+        if(focusEl) focusEl.classList.toggle('active', hasFocusedHand);
+
         // throttle DOM updates to ~10fps
         if(now - lastHandDomUpdate > 100){
           lastHandDomUpdate = now;

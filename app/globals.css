@@ -198,6 +198,34 @@ body::before{
 .hover-ring{position:absolute; inset:-2px; border-radius:14px; border:2px solid var(--gold); pointer-events:none; opacity:0; transition:.15s}
 .cracker-card.hover .hover-ring{opacity:1}
 
+/* Focused hand tracking zone — helps user stay centered */
+.hand-focus{
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  pointer-events:none;
+  z-index:5;
+}
+.focus-frame{
+  width:62%; height:58%;
+  max-width:560px; max-height:380px;
+  border:1.5px dashed rgba(255,214,10,0.55);
+  border-radius:18px;
+  background:rgba(255,214,10,0.04);
+  backdrop-filter:blur(1px);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:4px;
+  box-shadow:0 0 0 1px rgba(255,214,10,0.12), 0 0 24px rgba(255,214,10,0.08) inset;
+  transition:opacity .3s, transform .3s;
+}
+.focus-label{font-size:11px; font-weight:800; color:rgba(255,214,10,0.95); letter-spacing:.4px}
+.focus-sub{font-size:9px; color:rgba(255,255,255,0.72)}
+.hand-focus.active .focus-frame{
+  border-color:rgba(0,230,118,0.85);
+  background:rgba(0,230,118,0.06);
+  box-shadow:0 0 20px rgba(0,230,118,0.18) inset;
+}
+.hand-focus.active .focus-label{color:#00e676}
+
 /* Responsive minimal */
 @media (max-width:860px){
   .top-glass{padding:6px 8px}

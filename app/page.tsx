@@ -49,6 +49,14 @@ export default function Page() {
           </div>
         </div>
 
+        {/* Focused hand tracking zone */}
+        <div className="hand-focus" id="handFocus" aria-hidden="true">
+          <div className="focus-frame">
+            <span className="focus-label">👋 Center hands here</span>
+            <span className="focus-sub">Keep both hands 40-70cm away • Good light</span>
+          </div>
+        </div>
+
         {/* Lightweight camera prompt */}
         <div className="camera-prompt" id="startMessage">
           <span className="prompt-dot"></span>
