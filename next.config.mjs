@@ -1,16 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
-          { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
-        ],
-      },
-    ];
-  },
+  // Removed COOP/COEP headers that were blocking camera in preview iframe
+  // (require-corp breaks getUserMedia in embedded previews; MediaPipe still works without it)
 };
 export default nextConfig;
