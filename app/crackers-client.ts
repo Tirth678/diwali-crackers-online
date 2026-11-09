@@ -3,14 +3,14 @@
 // Single-file clean implementation
 
 const CRACKER_TYPES = [
-  { id:'anar', name:'Anar', hindi:'अनार', desc:'Golden fountain spray', emoji:'🌋', color:'#ff9a00', accent:'#ffd60a', chip:'Fountain', sound:'fountain' },
-  { id:'rocket', name:'Rocket', hindi:'रॉकेट', desc:'Shoots up & bursts', emoji:'🚀', color:'#ff3b30', accent:'#ff6e40', chip:'Sky', sound:'rocket' },
-  { id:'chakri', name:'Chakri', hindi:'चकरी', desc:'Spinning ground wheel', emoji:'🌀', color:'#00e676', accent:'#69f0ae', chip:'Spinner', sound:'chakri' },
-  { id:'bomb', name:'Sutli Bomb', hindi:'सुतली बम', desc:'Thunderous boom', emoji:'💣', color:'#ff1744', accent:'#ff5252', chip:'Boom', sound:'bomb' },
-  { id:'fuljhadi', name:'Fuljhadi', hindi:'फुलझड़ी', desc:'Hand sparkler shower', emoji:'✨', color:'#ffd60a', accent:'#ffe57f', chip:'Sparkler', sound:'sparkler' },
-  { id:'laxmi', name:'Laxmi Bomb', hindi:'लक्ष्मी बम', desc:'Mega blast', emoji:'🧨', color:'#7b2cff', accent:'#b388ff', chip:'Mega', sound:'megabomb' },
-  { id:'pop', name:'Pop Pop', hindi:'पॉप पॉप', desc:'Cute crackle snaps', emoji:'🎉', color:'#29b6f6', accent:'#80d8ff', chip:'Pops', sound:'pop' },
-  { id:'skyshot', name:'Sky Shot', hindi:'आकाश शॉट', desc:'Multi-color sky burst', emoji:'🎆', color:'#ff4081', accent:'#ff80ab', chip:'Multi', sound:'skyshot' },
+  { id:'anar', name:'Anar', hindi:'अनार', desc:'Golden fountain spray', image:'/images/crackers/anar.webp', emoji:'🌋', color:'#ff9a00', accent:'#ffd60a', chip:'Fountain', sound:'fountain' },
+  { id:'rocket', name:'Rocket', hindi:'रॉकेट', desc:'Shoots up & bursts', image:'/images/crackers/rocket.webp', emoji:'🚀', color:'#ff3b30', accent:'#ff6e40', chip:'Sky', sound:'rocket' },
+  { id:'chakri', name:'Chakri', hindi:'चकरी', desc:'Spinning ground wheel', image:'/images/crackers/chakri.webp', emoji:'🌀', color:'#00e676', accent:'#69f0ae', chip:'Spinner', sound:'chakri' },
+  { id:'bomb', name:'Sutli Bomb', hindi:'सुतली बम', desc:'Thunderous boom', image:'/images/crackers/bomb.webp', emoji:'💣', color:'#ff1744', accent:'#ff5252', chip:'Boom', sound:'bomb' },
+  { id:'fuljhadi', name:'Fuljhadi', hindi:'फुलझड़ी', desc:'Hand sparkler shower', image:'/images/crackers/fuljhadi.webp', emoji:'✨', color:'#ffd60a', accent:'#ffe57f', chip:'Sparkler', sound:'sparkler' },
+  { id:'laxmi', name:'Laxmi Bomb', hindi:'लक्ष्मी बम', desc:'Mega blast', image:'/images/crackers/laxmi.webp', emoji:'🧨', color:'#7b2cff', accent:'#b388ff', chip:'Mega', sound:'megabomb' },
+  { id:'pop', name:'Pop Pop', hindi:'पॉप पॉप', desc:'Cute crackle snaps', image:'/images/crackers/pop.webp', emoji:'🎉', color:'#29b6f6', accent:'#80d8ff', chip:'Pops', sound:'pop' },
+  { id:'skyshot', name:'Sky Shot', hindi:'आकाश शॉट', desc:'Multi-color sky burst', image:'/images/crackers/skyshot.webp', emoji:'🎆', color:'#ff4081', accent:'#ff80ab', chip:'Multi', sound:'skyshot' },
 ];
 
 let activeCracker = 'anar';
@@ -20,6 +20,7 @@ let shockwaves = [];
 let stats = { placed:0, bursts:0, streak:0 };
 let flashAlpha = 0;
 let smokeParticles: any[] = [];
+let crackerImages: Record<string, HTMLImageElement> = {};
 let soundOn = true;
 let cameraOn = false;
 let nightMode = false;
@@ -72,6 +73,16 @@ function ensureAudio(){
       })
     })
   }
+}
+
+function preloadCrackerImages(){
+  CRACKER_TYPES.forEach(ct=>{
+    const img = new Image();
+    img.src = (ct as any).image;
+    img.onload = ()=>{ crackerImages[ct.id]=img; };
+    img.onerror = ()=>{ console.warn('Failed to load', ct.image) };
+    crackerImages[ct.id]=img;
+  });
 }
 
 function preloadRealSounds(){
@@ -283,7 +294,7 @@ function renderShelf(){
     div.dataset.id=t.id;
     div.innerHTML=`
       <div class="hover-ring"></div>
-      <div class="cracker-icon" style="color:${t.color}">${t.emoji}</div>
+      <div class="cracker-icon" style="background:${t.color}18; border:1px solid ${t.color}30; overflow:hidden"><img src="${(t as any).image}" alt="${t.name}" style="width:100%;height:100%;object-fit:contain; border-radius:8px" onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size:22px\\'>${t.emoji}</span>'" /></div>
       <div class="cracker-name">${t.name}</div>
       <div class="cracker-desc">${t.desc}</div>
       <div class="cracker-meta">
@@ -305,7 +316,7 @@ function selectCracker(id){
   const t = CRACKER_TYPES.find(c=>c.id===id);
   renderShelf();
   updateActiveUI();
-  showToast(`Selected ${t.emoji} ${t.name} • Double-tap stage to burst!`, t.color);
+  showToast(`Selected ${t.name} • Double-tap stage to burst!`, t.color);
   playSound('pop');
 }
 function updateActiveUI(){
@@ -325,7 +336,7 @@ function renderArsenal(){
     el.className='arsenal-item';
     el.style.opacity=c?1:0.45;
     el.innerHTML=`
-      <div class="icon" style="background:${t.color}20; border:1px solid ${t.color}40">${t.emoji}</div>
+      <div class="icon" style="background:${t.color}20; border:1px solid ${t.color}40; overflow:hidden; display:grid; place-items:center"><img src="${(t as any).image}" alt="${t.name}" style="width:22px;height:22px;object-fit:contain; border-radius:4px" onerror="this.style.display='none'; this.parentElement.textContent='${t.emoji}'" /></div>
       <div class="info"><b>${t.name}</b><span>${t.desc}</span></div>
       <div class="count" style="color:${t.color}">${c}</div>
     `;
@@ -487,7 +498,7 @@ function fireAt(x,y,type){
   renderArsenal();
   const t = CRACKER_TYPES.find(c=>c.id===type);
   playSound(t ? t.sound : 'firework', x, y);
-  showToast(`${t.emoji} ${t.name} burst!`, t.color);
+  showToast(`${t.name} burst!`, t.color);
   let idx=-1; let bestDist=9999;
   placedCrackers.forEach((p,i)=>{
     const d=Math.hypot(p.x - x, p.y - y);
@@ -501,7 +512,7 @@ function placeCracker(x,y,type){
   placedCrackers.push({id:Date.now()+Math.random(), x,y, type, scale:1, placedAt:performance.now()});
   stats.placed++;
   renderArsenal();
-  showToast(`Placed ${CRACKER_TYPES.find(c=>c.id===type).emoji} — double-tap to fire!`, '#ffd60a');
+  showToast(`Placed ${CRACKER_TYPES.find(c=>c.id===type).name} — double-tap to fire!`, '#ffd60a');
   playSound('pop');
   for(let i=0;i<12;i++){
     const a=Math.random()*Math.PI*2;
@@ -594,10 +605,15 @@ function stopCamera(){
   cameraOn=false;
   camDot.classList.add('off');
   camLabel.textContent='Camera OFF';
-  document.getElementById('btnCamera').classList.remove('active');
+  const _btnCam = document.getElementById('btnCamera') as any;
+  if(_btnCam) _btnCam.classList.remove('active');
   showToast('Camera off — mouse/touch active', '#c2b8d6');
 }
-function toggleCamera(){ if(cameraOn) stopCamera(); else startCamera(); }
+function toggleCamera(){
+  // No off option — camera always stays ON
+  if(!cameraOn) startCamera();
+  else showToast('Camera is always ON — enjoy the celebration! 🪔', '#00e676');
+}
 
 // Hand tracking
 let handLandmarker = null;
@@ -901,10 +917,17 @@ function renderLoop(now){
     ctx.beginPath();
     ctx.ellipse(0,18,18,6,0,0,Math.PI*2);
     ctx.fill();
-    ctx.font='28px serif';
-    ctx.textAlign='center';
-    ctx.textBaseline='middle';
-    ctx.fillText(t.emoji, 0, 0);
+    // Draw real cracker image if loaded, else fallback to emoji
+    const img = crackerImages[p.type];
+    if(img && img.complete && img.naturalWidth>0){
+      // draw image centered 36x36
+      try{ ctx.drawImage(img, -18, -18, 36, 36); }catch(e){ ctx.fillText(t.emoji, 0, 0); }
+    } else {
+      ctx.font='28px serif';
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.fillText(t.emoji, 0, 0);
+    }
     ctx.font='700 9px Poppins, sans-serif';
     const label = t.name.toUpperCase();
     const w = ctx.measureText(label).width + 10;
@@ -1065,7 +1088,8 @@ function showToast(msg, color='#ffd60a'){
 }
 
 // Bindings
-document.getElementById('btnCamera').addEventListener('click', toggleCamera);
+const _camBtn = document.getElementById('btnCamera') as any;
+if(_camBtn) _camBtn.addEventListener('click', toggleCamera);
 document.getElementById('btnEnableCamera').addEventListener('click', startCamera);
 document.getElementById('btnSound').addEventListener('click', toggleSound);
 document.getElementById('btnSoundToggle2').addEventListener('click', toggleSound);
@@ -1168,6 +1192,7 @@ canvas.addEventListener('contextmenu', e=> e.preventDefault());
 
 // Init — preload real cracker sounds for realism
 preloadRealSounds();
+preloadCrackerImages();
 setupVolumeControl();
 renderShelf();
 renderArsenal();

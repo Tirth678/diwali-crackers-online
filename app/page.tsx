@@ -50,11 +50,11 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Lightweight inline camera prompt — not a separate startup page */}
+        {/* Lightweight inline camera prompt — no off option, camera always ON */}
         <div className="camera-prompt" id="startMessage">
           <span className="prompt-dot"></span>
-          <span>📷 Camera off</span>
-          <button className="btn primary small" id="btnEnableCamera">Enable Camera</button>
+          <span>📷 Camera • Always ON</span>
+          <button className="btn primary small" id="btnEnableCamera">Allow Camera</button>
           <span className="prompt-hint">Tap to allow • Video stays on device</span>
         </div>
         <div className="camera-prompt hidden" id="loadingMessage">
@@ -74,7 +74,7 @@ export default function Page() {
             </div>
           </div>
           <div className="hdr-actions">
-            <button className="btn" id="btnCamera"><span className="status-dot" id="camDot"></span> <span id="camLabel">Camera ON</span></button>
+            <div className="btn" style={{ pointerEvents: 'none', cursor: 'default' }}><span className="status-dot" id="camDot"></span> <span id="camLabel">Camera ON</span></div>
             <button className="btn" id="btnSound">🔊 Sound ON</button>
             <div className="vol-control" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(10,6,24,0.85)', padding: '6px 8px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)' }}>
               <span style={{ fontSize: '10px' }}>🔊</span>
