@@ -70,7 +70,7 @@ export default function Page() {
             <div className="logo">🪔</div>
             <div>
               <h1>Diwali <span>Crackers Online</span></h1>
-              <p>Full-screen AR • Pinch to select • Double-pinch to burst</p>
+              <p>Full-screen AR • 1-Tap place • 2-Tap burst • 3-Finger switch</p>
             </div>
           </div>
           <div className="hdr-actions">
@@ -137,8 +137,8 @@ export default function Page() {
                   <button className="btn small" id="btnSoundToggle2">🔊 Sound</button>
                 </div>
                 <div style={{ fontSize: "10px", color: "var(--muted)", lineHeight: 1.5 }}>
-                  <b style={{ color: "var(--gold)" }}>Single pinch</b> = select/place &nbsp;•&nbsp; <b style={{ color: "var(--gold)" }}>Double pinch</b> = burst<br />
-                  Tip: Mouse click = single, double-click = burst
+                  <b style={{ color: "var(--gold)" }}>1-Tap</b> = place &nbsp;•&nbsp; <b style={{ color: "var(--gold)" }}>2-Tap</b> = burst &nbsp;•&nbsp; <b style={{ color: "var(--gold)" }}>3-Tap</b> = cycle+burst<br />
+                  🖖 3-Finger tap = switch cracker • 🖱️ Wheel/Middle-click to cycle
                 </div>
               </div>
             </div>
@@ -159,9 +159,13 @@ export default function Page() {
               </div>
               <div className="gesture-row">
                 <div className="gesture-icon">⚡⚡</div>
-                <div><b>Double Pinch</b><p>Burst at cursor — on placed cracker = precise!</p></div>
+                <div><b>Double Pinch / Tap</b><p>Burst at cursor — on placed cracker = precise!</p></div>
               </div>
-              <p style={{ fontSize: "9px", color: "var(--muted)", marginTop: "6px", textAlign: "center" }}>Fuljhadi streams while pinching • Rocket needs sky</p>
+              <div className="gesture-row">
+                <div className="gesture-icon">🖖</div>
+                <div><b>3-Finger / Triple Tap</b><p>Switch cracker instantly — cycle through all 8</p></div>
+              </div>
+              <p style={{ fontSize: "9px", color: "var(--muted)", marginTop: "6px", textAlign: "center" }}>Fuljhadi streams while pinching • Rocket needs sky • Wheel to cycle</p>
             </div>
           </div>
         </div>
