@@ -17,6 +17,15 @@ body{
   overflow:hidden;
   min-height:100vh;
 }
+body.celebrating{
+  animation: bodyHue 2.5s ease-out;
+}
+@keyframes bodyHue{
+  0%{ filter:hue-rotate(0deg) brightness(1) }
+  15%{ filter:hue-rotate(15deg) brightness(1.15) }
+  40%{ filter:hue-rotate(-10deg) brightness(1.25) }
+  100%{ filter:hue-rotate(0deg) brightness(1) }
+}
 
 /* Minimal glass theme — no heavy gradients */
 body::before{
@@ -33,6 +42,7 @@ body::before{
   width:100vw; height:100vh; height:100dvh;
   display:flex; flex-direction:column;
   background:#000;
+  overflow:hidden;
 }
 
 /* Stage */
@@ -43,13 +53,99 @@ body::before{
 }
 #video{
   position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
-  /* removed heavy filter for performance — keep subtle */
   filter: none;
 }
 #displayCanvas{
   position:absolute; inset:0; width:100%; height:100%;
 }
 #displayCanvas{ will-change: transform; image-rendering: auto; }
+
+/* ===== FULLSCREEN DIWALI EFFECT LAYERS ===== */
+.color-wash-overlay{
+  position:absolute; inset:0;
+  pointer-events:none;
+  z-index:4;
+  opacity:0;
+  mix-blend-mode:screen;
+  transition:opacity .2s;
+}
+.color-wash-overlay.active{
+  opacity:1;
+}
+.festive-string{
+  position:absolute; top:0; left:0; right:0;
+  height:28px;
+  display:flex; justify-content:space-around; align-items:flex-end;
+  padding:0 12px;
+  z-index:6;
+  pointer-events:none;
+  overflow:hidden;
+}
+.festive-string span{
+  width:14px; height:14px; border-radius:50%;
+  background: radial-gradient(circle at 35% 35%, #fff, var(--c) 60%);
+  box-shadow: 0 0 10px var(--c), 0 0 22px var(--c), 0 4px 12px rgba(0,0,0,0.3);
+  animation: bulbTwinkle var(--d) ease-in-out infinite;
+  position:relative;
+}
+.festive-string span::after{
+  content:""; position:absolute; top:-6px; left:50%; transform:translateX(-50%);
+  width:2px; height:7px; background:rgba(0,0,0,0.5); border-radius:1px;
+}
+@keyframes bulbTwinkle{
+  0%,100%{ opacity:1; transform:scale(1); filter:brightness(1) }
+  50%{ opacity:0.65; transform:scale(0.92); filter:brightness(1.25) }
+}
+.rangoli-overlay{
+  position:absolute; inset:0;
+  pointer-events:none;
+  z-index:3;
+  opacity:0.07;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 18%, rgba(255,214,10,0.15) 18.5%, transparent 19%),
+    radial-gradient(circle at 50% 50%, transparent 28%, rgba(255,59,48,0.12) 28.5%, transparent 29%),
+    radial-gradient(circle at 50% 50%, transparent 38%, rgba(0,230,118,0.10) 38.5%, transparent 39%),
+    repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,214,10,0.04) 0deg 10deg, transparent 10deg 20deg);
+  animation: rangoliSpin 120s linear infinite;
+}
+@keyframes rangoliSpin{ to{ transform:rotate(360deg) } }
+.ambient-glow{
+  position:absolute; inset:-40px;
+  pointer-events:none;
+  z-index:2;
+  opacity:0.5;
+  background:
+    radial-gradient(900px 500px at 15% 85%, rgba(255,59,48,0.18), transparent 60%),
+    radial-gradient(800px 600px at 85% 90%, rgba(255,214,10,0.16), transparent 60%),
+    radial-gradient(700px 400px at 50% 0%, rgba(123,44,255,0.14), transparent 65%);
+  animation: glowShift 8s ease-in-out infinite alternate;
+  mix-blend-mode:screen;
+}
+@keyframes glowShift{
+  0%{ transform:translate(0,0) scale(1); opacity:0.45 }
+  100%{ transform:translate(8px, -6px) scale(1.03); opacity:0.6 }
+}
+.screen-glow-flash{
+  position:absolute; inset:0;
+  pointer-events:none;
+  z-index:7;
+  opacity:0;
+  background: radial-gradient(800px 600px at var(--x,50%) var(--y,50%), var(--flashColor, #ffd60a) 0%, transparent 70%);
+  mix-blend-mode:screen;
+  transition:opacity .15s;
+}
+.screen-glow-flash.active{ opacity:0.85 }
+/* subtle vignette pulse on mega burst */
+.vignette-flash{
+  position:absolute; inset:0;
+  pointer-events:none;
+  z-index:6;
+  box-shadow: inset 0 0 120px rgba(255,214,10,0.0), inset 0 0 220px rgba(255,59,48,0.0);
+  transition: box-shadow .2s;
+}
+.vignette-flash.active{
+  box-shadow: inset 0 0 120px var(--vColor, rgba(255,214,10,0.55)), inset 0 0 260px var(--vColor2, rgba(255,59,48,0.35));
+}
 
 /* Top glass — minimal */
 .top-glass{
