@@ -50,16 +50,16 @@ export default function Page() {
           </div>
         </div>
 
-        <div className="stage-message" id="startMessage">
-          <h3>🪔 Welcome to Diwali Celebration!</h3>
-          <p>Allow camera access for hand gestures.<br />Mouse/touch works instantly as fallback.</p>
-          <button className="btn primary" id="btnEnableCamera" style={{ marginTop: "10px" }}>📷 Enable Camera</button>
-          <p style={{ marginTop: "8px", fontSize: "10px", opacity: 0.7 }}>Your video stays on device — never uploaded.</p>
+        {/* Lightweight inline camera prompt — not a separate startup page */}
+        <div className="camera-prompt" id="startMessage">
+          <span className="prompt-dot"></span>
+          <span>📷 Camera off</span>
+          <button className="btn primary small" id="btnEnableCamera">Enable Camera</button>
+          <span className="prompt-hint">Tap to allow • Video stays on device</span>
         </div>
-
-        <div className="stage-message hidden" id="loadingMessage">
-          <h3>⏳ Loading hand tracking...</h3>
-          <p>Downloading AI model (≈ 5-10s). If stuck, you can still use mouse.</p>
+        <div className="camera-prompt hidden" id="loadingMessage">
+          <span className="spinner"></span>
+          <span>Loading hand tracking…</span>
         </div>
       </div>
 

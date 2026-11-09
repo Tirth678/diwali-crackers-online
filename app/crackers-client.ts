@@ -575,6 +575,12 @@ async function startCamera(){
       startMsg.classList.remove('hidden');
       const h3 = startMsg.querySelector('h3');
       if(h3) h3.textContent = '📷 Camera needs permission';
+      else {
+        const firstSpan = startMsg.querySelector('span:nth-child(2)');
+        if(firstSpan) (firstSpan as any).textContent = `Camera: ${msg} — tap Enable`;
+        const hint = startMsg.querySelector('.prompt-hint');
+        if(hint) (hint as any).textContent = 'Tap Enable and allow • open in new tab if blocked';
+      }
       const p = startMsg.querySelector('p');
       if(p) p.innerHTML = `Error: ${msg}<br>Click <b>Enable Camera</b> below and allow when prompted.<br><small style="opacity:0.8">Tip: If in preview iframe, open in new tab and allow camera.</small>`;
     }
